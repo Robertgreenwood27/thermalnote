@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080809"><meta name="description" content="Your private space for thoughts, links, and images.">
+  <title>Thermalnote — your private notebook</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div id="login-view" class="login-view">
+    <form id="login-form" class="login-card">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">t</span><span>thermalnote<span class="brand-period">.</span></span></div>
+      <div class="login-intro"><p class="eyebrow">A SPACE OF YOUR OWN</p><h1>Let your thoughts<br>leave a little heat.</h1><p>Your notes, links, and everything in between.</p></div>
+      <label for="username">Username</label><input id="username" name="username" autocomplete="username" value="Arris" required>
+      <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+      <p id="login-error" class="error" role="alert"></p>
+      <button id="login-button" class="primary" type="submit">Open your notebook <span aria-hidden="true">↗</span></button>
+      <div class="login-footer"><span class="temperature"><i></i><i></i><i></i><i></i><i></i></span> A thought begins. The heat fades. The words stay.</div>
+    </form>
+    <div class="login-art" aria-hidden="true"><span>Make room<br>for what’s<br><em>on your mind.</em></span><div class="art-rule"></div><small>YOUR PRIVATE NOTEBOOK</small></div>
+  </div>
+  <div id="app-view" class="app-shell" hidden>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-top"><div class="brand"><span class="brand-mark" aria-hidden="true">t</span><span>thermalnote<span class="brand-period">.</span></span></div><button id="close-sidebar" class="icon-button mobile-only" aria-label="Close notes">×</button></div>
+      <button id="new-note" class="new-note"><span>＋</span> New note <kbd>Ctrl N</kbd></button>
+      <div class="section-label"><span>YOUR NOTES</span><span id="note-count">0</span></div>
+      <nav id="note-list" class="note-list" aria-label="Notes"></nav>
+      <div class="sidebar-bottom"><div class="avatar">A</div><div class="account"><strong>Arris</strong><span>Personal notebook</span></div><button id="logout" class="icon-button" title="Sign out" aria-label="Sign out">↪</button></div>
+    </aside>
+    <button id="sidebar-shade" class="sidebar-shade" aria-label="Close notes" hidden></button>
+    <main class="main">
+      <header class="topbar"><div class="breadcrumbs"><button id="open-sidebar" class="icon-button mobile-only" aria-label="Open notes">☰</button><span class="notebook-icon" aria-hidden="true">▤</span><span>My notebook</span><span class="crumb-divider">/</span><span id="crumb-title">New note</span></div><div class="top-actions"><button id="save-status" class="save-status" title="Save now" aria-live="polite">All changes saved</button><button id="delete-note" class="icon-button" aria-label="Delete note" title="Delete note">⌫</button></div></header>
+      <div id="save-error" class="save-error" role="alert" hidden><span></span><button id="retry-save">Try again</button><button id="copy-recovery" hidden>Keep as new note</button></div>
+      <div class="editor-scroll" id="editor-scroll">
+        <article class="writing-surface">
+          <div class="note-meta"><span id="note-date"></span><span class="meta-line"></span><span>PRIVATE NOTE</span></div>
+          <div id="note-title" class="note-title" contenteditable="true" role="textbox" aria-label="Note title" data-placeholder="Untitled" spellcheck="true"></div>
+          <div class="editor-toolbar" role="toolbar" aria-label="Note formatting">
+            <button id="format-bold" class="tool" title="Bold (Ctrl B)" aria-label="Bold"><b>B</b></button><button id="format-italic" class="tool" title="Italic (Ctrl I)" aria-label="Italic"><i>I</i></button><span class="toolbar-divider"></span><button id="add-link" class="tool labeled" title="Insert a link"><span aria-hidden="true">↗</span> Link</button><button id="add-image" class="tool labeled" title="Add an image"><span aria-hidden="true">▧</span> Image</button><input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" multiple hidden><div class="toolbar-spacer"></div><button id="heat-toggle" class="heat-toggle" aria-pressed="true" title="Toggle the heat effect"><span class="heat-indicator" aria-hidden="true">✦</span> Heat on</button>
+          </div>
+          <div id="note-body" class="note-body" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Note body" data-placeholder="What’s on your mind?" spellcheck="true"></div>
+          <div id="empty-hint" class="empty-hint"><span>Write freely.</span> Paste a link, drop a picture, or follow a thought.</div>
+        </article>
+      </div>
+      <footer class="statusbar"><span id="word-count">0 words</span><div class="cooling-legend"><span class="temperature"><i></i><i></i><i></i><i></i><i></i></span><span>A little heat. A clear mind.</span></div><span id="storage-label">Saved on this computer</span></footer>
+    </main>
+  </div>
+  <dialog id="link-dialog"><form id="link-form"><div class="dialog-heading"><h2>Add a link</h2><button type="button" class="icon-button" id="close-link" aria-label="Close">×</button></div><label for="link-url">Web address</label><input id="link-url" type="url" placeholder="https://" required><label for="link-text">Text <span class="muted">(optional)</span></label><input id="link-text" placeholder="Name this link"><p id="link-error" class="error" role="alert"></p><button type="submit" class="primary">Insert link</button></form></dialog>
+  <dialog id="delete-dialog"><form method="dialog"><h2>Delete this note?</h2><p>This note and its words will be removed.</p><div class="dialog-actions"><button value="cancel" class="secondary">Keep note</button><button value="delete" class="danger">Delete note</button></div></form></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body></html>
