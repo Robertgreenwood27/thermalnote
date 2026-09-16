@@ -1,4 +1,8 @@
+# Private credentials belong in these files, never in this ignore file.
 .env
+.env.*
+!.env.example
+.vercel/
 data/
 node_modules/
 .DS_Store

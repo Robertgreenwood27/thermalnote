@@ -13,7 +13,7 @@
     <form id="login-form" class="login-card">
       <div class="brand"><span class="brand-mark" aria-hidden="true">t</span><span>thermalnote<span class="brand-period">.</span></span></div>
       <div class="login-intro"><p class="eyebrow">A SPACE OF YOUR OWN</p><h1>Let your thoughts<br>leave a little heat.</h1><p>Your notes, links, and everything in between.</p></div>
-      <label for="username">Username</label><input id="username" name="username" autocomplete="username" value="Arris" required>
+      <label for="username">Username</label><input id="username" name="username" autocomplete="username" required>
       <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
       <p id="login-error" class="error" role="alert"></p>
       <button id="login-button" class="primary" type="submit">Open your notebook <span aria-hidden="true">↗</span></button>
@@ -27,7 +27,7 @@
       <button id="new-note" class="new-note"><span>＋</span> New note <kbd>Ctrl N</kbd></button>
       <div class="section-label"><span>YOUR NOTES</span><span id="note-count">0</span></div>
       <nav id="note-list" class="note-list" aria-label="Notes"></nav>
-      <div class="sidebar-bottom"><div class="avatar">A</div><div class="account"><strong>Arris</strong><span>Personal notebook</span></div><button id="logout" class="icon-button" title="Sign out" aria-label="Sign out">↪</button></div>
+      <div class="sidebar-bottom"><div id="account-avatar" class="avatar">•</div><div class="account"><strong id="account-name">Your notebook</strong><span>Personal notebook</span></div><button id="logout" class="icon-button" title="Sign out" aria-label="Sign out">↪</button></div>
     </aside>
     <button id="sidebar-shade" class="sidebar-shade" aria-label="Close notes" hidden></button>
     <main class="main">
