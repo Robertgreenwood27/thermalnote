@@ -29,7 +29,7 @@ The server binds only to this computer by default. Keep its terminal running whi
 
 ## Storage configuration
 
-The footer tells you which storage is active. Local mode stores notes in `data/notes.sqlite` and images in `data/uploads`. Back up the whole `data` directory while the server is stopped. Browser draft backups are only a recovery aid; the server database is the source of truth.
+The `STORAGE_MODE` setting selects storage. Local mode stores notes in `data/notes.sqlite` and images in `data/uploads`. Back up the whole `data` directory while the server is stopped. Browser draft backups are only a recovery aid; the server database is the source of truth.
 
 Supabase project: **thermalnote**, `sedyckmbnyydsfjoycuz`.
 
@@ -46,7 +46,7 @@ To connect Supabase:
    SUPABASE_SECRET_KEY=your_server_secret_or_service_role_key
    ```
 
-3. Restart the server. The footer will show **Synced with Supabase**. The supplied publishable key is intentionally not used for private server writes.
+3. Restart the server. The supplied publishable key is intentionally not used for private server writes.
 
 Local and Supabase storage are separate; switching modes does not copy existing data. Do not switch storage while an unsaved draft is open. A production migration should copy both notes and images before switching.
 
