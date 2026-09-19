@@ -62,7 +62,7 @@ export async function createApp({env=process.env,dataDirectory=env.DATA_DIR||pat
         if(pathname.startsWith('/api/notes/')){
           const id=pathname.slice('/api/notes/'.length);if(!uuid.test(id))throw fail('Invalid note.');
           const input=await body(req);if(!Number.isSafeInteger(input.version)||input.version<0)throw fail('Invalid note version.');
-          if(req.method==='PUT'){if(typeof input.title!=='string'||typeof input.content!=='string')throw fail('A note needs text.');const note=await storage.save({id,title:input.title,content:input.content},input.version);return json(res,200,note);}
+          if(req.method==='PUT'){if(typeof input.title!=='string'||typeof input.content!=='string')throw fail('A note needs text.');const marks=input.marks===undefined?'[]':input.marks;if(typeof marks!=='string')throw fail('Those study marks could not be saved.');try{if(!Array.isArray(JSON.parse(marks)))throw Error();}catch{throw fail('Those study marks could not be saved.');}const note=await storage.save({id,title:input.title,content:input.content,marks},input.version);return json(res,200,note);}
           if(req.method==='DELETE'){await storage.remove(id,input.version);return json(res,200,{ok:true});}
         }
         if(pathname==='/api/images/sign'&&req.method==='POST'){
@@ -82,7 +82,7 @@ export async function createApp({env=process.env,dataDirectory=env.DATA_DIR||pat
         }
         throw fail('Not found.',404);
       }
-      const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/heat.js':'heat.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/favicon.ico':'favicon.ico','/favicon.png':'favicon.png','/apple-touch-icon.png':'apple-touch-icon.png'};
+      const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/heat.js':'heat.js','/marks.js':'marks.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/favicon.ico':'favicon.ico','/favicon.png':'favicon.png','/apple-touch-icon.png':'apple-touch-icon.png'};
       if(!publicFiles[pathname]||!['GET','HEAD'].includes(req.method))throw fail('Not found.',404);
       const file=publicFiles[pathname],content=await readFile(path.join(project,'public',file));res.writeHead(200,{'Content-Type':types[path.extname(file)]});res.end(req.method==='HEAD'?undefined:content);
     }catch(error){if(!error.status)console.error('Request failed:',error.code||error.name);json(res,error.status||500,{error:error.status?error.message:'Something went wrong saving your changes. Please try again.'});}
