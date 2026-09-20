@@ -33,3 +33,18 @@
 .studying .note-body,.studying .note-title{caret-color:transparent}
 .studying .editor-toolbar{opacity:.4;pointer-events:none}
 @media(max-width:760px){.study-bar{padding:12px 18px;gap:12px}.study-button{padding:6px 8px}.study-reveal,.grade{padding:9px 11px;font-size:.8125rem}.study-actions kbd{display:none}.study-where{width:100%}}
+
+/* A diagram is only as readable as the column it sits in. Clicking one opens it over the page, where it can be zoomed, panned, and thrown full screen. */
+.note-body img{cursor:zoom-in}
+.image-viewer{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;padding:0;border:0;border-radius:0;background:#07070af2;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#45454a transparent}
+.image-viewer[open]{display:flex}
+.image-viewer::backdrop{background:#000d}
+.image-viewer:fullscreen{background:#07070a}
+.image-viewer img{flex:none;margin:auto;max-width:100%;max-height:100dvh;object-fit:contain;cursor:zoom-in;border-radius:4px}
+.image-viewer.zoomed img{max-width:none;max-height:none;border-radius:0;cursor:grab}
+.image-viewer.zoomed img:active{cursor:grabbing}
+.viewer-actions{position:fixed;top:14px;right:16px;display:flex;align-items:center;gap:8px;z-index:2}
+.viewer-button{padding:8px 13px;border-radius:7px;font-size:.8125rem;color:#dcdce0;background:#1b1b1fe6;border:1px solid #3a3a40}
+.viewer-button:hover{background:#2c2c32;color:#fff}
+.viewer-actions .icon-button{background:#1b1b1fe6;border:1px solid #3a3a40;color:#cfcfd4}
+@media(max-width:760px){.viewer-actions{top:10px;right:10px;gap:6px}.viewer-button{padding:7px 10px;font-size:.75rem}}

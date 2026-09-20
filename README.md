@@ -21,6 +21,7 @@ The server binds only to this computer by default. Keep its terminal running whi
 - Each character's heat is independent. Cooling lasts about four seconds, never blocks editing or saving, and is not included in saved notes. Existing text opens white.
 - Paste links or use **Link**. Ctrl/Cmd-click a link in the editor to open it.
 - Paste, drop, or choose images. PNG, JPEG, WebP, GIF, and AVIF are supported, up to 12 MB each.
+- Click an image to open it over the page, sized to the screen. Click it again or press + and − to zoom, drag to pan, **Full screen** or F fills the display, and Esc or a click outside closes it. Ctrl/Cmd-click an image instead to select it in the editor.
 - Use Ctrl/Cmd+B and Ctrl/Cmd+I, or the formatting buttons. Ctrl/Cmd+N makes a new note while the page has focus (a browser may reserve this shortcut).
 - **Heat on/off** controls the effect. It starts off for reduced-motion preferences. Browsers without the CSS Custom Highlight API still provide a working editor with white text.
 - There is no application-level character limit. Individual saves are subject to the host's request-size limit (4.5 MB on Vercel, 32 MB locally). Pictures upload separately and do not count toward note size.
