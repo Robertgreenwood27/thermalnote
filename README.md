@@ -1,6 +1,11 @@
 # Thermalnote
 
-A private, black notebook with text that cools from red through orange, gold, and blue to white. Notes have titles, autosave, rich text, links, and inline images.
+Two modes behind one sign-in, for the two things being worked on daily.
+
+- **Lift** — a training log built for speed: structured sets, last session's numbers already filled in, personal bests, food and protein, and a copy button that puts the whole day on the clipboard.
+- **Notes** — a private, black notebook with text that cools from red through orange, gold, and blue to white. Notes have titles, autosave, rich text, links, and inline images.
+
+The app opens in whichever mode was used last. The switch in the top bar moves between them, and the mode lives in the address (`#/workout`, `#/notes`), so either one can be pinned to a phone's home screen as its own icon.
 
 ## Open the app
 
@@ -14,6 +19,49 @@ npm start
 Open http://127.0.0.1:4317 and sign in with the username and password supplied during setup. The password is stored as a salted scrypt hash in the private `.env` file; it is never sent to the browser. `.env` and all local note data are excluded from Git.
 
 The server binds only to this computer by default. Keep its terminal running while using the app. `./start.sh` also starts it.
+
+## Lift
+
+The day is chosen automatically and rolls over at **4am**, so a session finished at 1am still files under the night it started. The arrows move between days; tapping the date returns to today. Everything saves as it is typed.
+
+### Logging a movement
+
+**+ Add movement** opens the catalogue: most-used first, then 99 movements across eleven muscle groups, plus search. The magnifier beside any movement opens a Google image search for it — the fastest way to learn a lift that is only a name so far. Searching something not in the list offers to add it as a new movement, and it joins the catalogue from then on.
+
+Adding a movement **fills in what was done last time**, so the starting question is "can this be beaten" rather than "what was it again". Untouched numbers are dimmed until edited, to show at a glance what has not been confirmed yet.
+
+Sets are a plain list, which is what makes uneven sets a non-event. **+ Set** copies the row above it, so three identical sets are one entry and two taps, and 30×10, 30×5, 20×8 is the same action with two numbers changed. There is no separate mode to switch into.
+
+Each movement carries three columns depending on what it is: weight/reps/RIR for loaded lifts, reps/added weight/RIR for bodyweight movements, and seconds for held positions like planks. **RIR** is reps in reserve — how many more were left in the tank. It is always optional, and it is the thing that separates a hard set from an easy one at the same weight.
+
+### Knowing whether it is working
+
+Under every movement: what was done last time and its total volume, then the personal best (best session volume, and best estimated one-rep max by the Epley formula). Beating the previous session shows a green gain beside the day's total for that movement.
+
+**History** lists every past day with its movements, volume, and protein. Any day can be opened and edited.
+
+### Food
+
+Meals are a description and grams of protein, with a running total. Meals eaten recently appear as chips — one tap to log the same thing again.
+
+### Copy day
+
+**Copy day** puts the whole day on the clipboard as plain text, with each movement's previous session and the change beneath it, ready to paste into a chatbot for review:
+
+```
+Monday, September 21, 2026
+
+WORKOUT
+Barbell Curl — 40×8 RIR1, 30×10 RIR2, 25×12 RIR0 · 920 lb
+  prev Sat, Sep 19 — 35×8, 30×10, 30×8 · 820 lb (+100)
+Day volume: 4,110 lb
+
+FOOD
+Chicken bowl — 55 g protein
+Total protein: 55 g
+```
+
+A day is stored as one versioned document, so the whole history loads at sign-in and previous bests appear instantly with nothing to fetch. Unsaved changes are mirrored to the browser and replayed if a save is interrupted.
 
 ## Notes and images
 
@@ -37,7 +85,7 @@ The notes schema and private image bucket were installed on September 16, 2026. 
 
 To connect Supabase:
 
-1. For a new installation, run `supabase.sql`, then `supabase-auth.sql` in this project's SQL editor. They create private notes, version-checked save/delete functions, a private images bucket, durable sessions, and a shared login attempt limit. They do not open anonymous access or alter unrelated tables.
+1. For a new installation, run `supabase.sql`, `supabase-auth.sql`, then `supabase-workout.sql` in this project's SQL editor. They create private notes, version-checked save/delete functions, a private images bucket, durable sessions, a shared login attempt limit, and the training-day table with its own version-checked save. They do not open anonymous access or alter unrelated tables.
 2. Set these values in the private `.env` file:
 
    ```dotenv
@@ -63,7 +111,7 @@ npm test
 npm run check
 ```
 
-Tests cover character age tracking, edits in the middle of repeated text, persistent storage, stale-save rejection, login, cross-origin write protection, private image access, image validation, and sessions and login limits shared by multiple server instances.
+Tests cover character age tracking, edits in the middle of repeated text, persistent storage, stale-save rejection, login, cross-origin write protection, private image access, image validation, sessions and login limits shared by multiple server instances, training-day storage and its version conflicts, the day API's authentication and date validation, the 4am day boundary, and the set arithmetic behind volume and summaries.
 
 See [DEPLOY.md](DEPLOY.md) for the remaining Vercel setup steps.
 

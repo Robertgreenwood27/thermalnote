@@ -1,17 +1,14 @@
 import { HeatLayer } from './heat.js';
-const $=id=>document.getElementById(id), title=$('note-title'), editor=$('note-body');
+import { $, api, toast, backup, escapeHTML, now } from './core.js';
+import { initWorkout, loadWorkout, flushDays } from './workout.js';
+const title=$('note-title'), editor=$('note-body');
+const drafts=(action,value)=>backup('drafts',action,value);
 const heat=new HeatLayer([title,editor]);
 const state={notes:new Map(),queues:new Map(),active:null,loaded:false,storage:'local',uploading:0};
-let listTimer,toastTimer,bookmark,draftDB;
-const escapeHTML=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const now=()=>new Date().toISOString();
-async function api(path,options={}){const response=await fetch(path,{...options,headers:{'Content-Type':'application/json',...options.headers},signal:AbortSignal.timeout(25000)});const result=await response.json().catch(()=>({error:response.status===413?'This note is too large for one save. Your draft is still here.':'The server is temporarily unavailable. Your draft is still here.'}));if(!response.ok)throw Object.assign(new Error(result.error||'Could not save. Please try again.'),{status:response.status});return result;}
+let listTimer,bookmark;
 function safeURL(value){try{const url=new URL(value);return ['http:','https:','mailto:'].includes(url.protocol)?url.href:null;}catch{return null;}}
 function sanitize(html){const template=document.createElement('template');template.innerHTML=html;const allowed=new Set(['P','DIV','BR','STRONG','B','EM','I','A','IMG','BLOCKQUOTE','UL','OL','LI','PRE','CODE','H1','H2','H3','HR','S','U']);for(const element of [...template.content.querySelectorAll('*')]){if(!allowed.has(element.tagName)){if(['SCRIPT','STYLE','IFRAME','OBJECT','SVG','MATH','FORM','INPUT','BUTTON'].includes(element.tagName))element.remove();else element.replaceWith(...element.childNodes);continue;}const href=element.getAttribute('href'),src=element.getAttribute('src'),alt=element.getAttribute('alt');for(const attr of [...element.attributes])element.removeAttribute(attr.name);if(element.tagName==='A'){const url=safeURL(href);if(url){element.href=url;element.target='_blank';element.rel='noopener noreferrer';}else element.replaceWith(...element.childNodes);}if(element.tagName==='IMG'){if(src&&(/^\/media\/[\da-f-]{36}\.(png|jpg|webp|gif|avif)$/.test(src)||/^https:\/\//i.test(src))){element.src=src;element.alt=alt||'Note image';element.loading='lazy';element.referrerPolicy='no-referrer';}else element.remove();}}return template.innerHTML;}
 function plain(html){const node=document.createElement('div');node.innerHTML=sanitize(html).replace(/<\/(?:p|div|li|h[1-6])>|<br\s*\/?>/gi,' ');return node.textContent||'';}
-function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4500);}
-function openDrafts(){if(draftDB)return draftDB;draftDB=new Promise((resolve,reject)=>{const request=indexedDB.open('thermalnote-drafts',1);request.onupgradeneeded=()=>request.result.createObjectStore('drafts',{keyPath:'id'});request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});return draftDB;}
-async function drafts(action,value){const db=await openDrafts();return new Promise((resolve,reject)=>{const transaction=db.transaction('drafts',action==='getAll'?'readonly':'readwrite');const request=transaction.objectStore('drafts')[action](value);transaction.oncomplete=()=>resolve(request.result);transaction.onerror=()=>reject(transaction.error);transaction.onabort=()=>reject(transaction.error);});}
 function cacheDraft(note){drafts('put',{...note}).catch(()=>{const q=queue(note.id);q.draftWarning=true;renderStatus();});}
 function queue(id){if(!state.queues.has(id))state.queues.set(id,{generation:0,saved:0,busy:null,timer:null,maxTimer:null,error:null,retryCount:0});return state.queues.get(id);}
 function dirty(note){const q=queue(note.id);q.generation++;q.error=q.error?.status===409?q.error:null;note.updated_at=now();cacheDraft(note);schedule(note.id);renderStatus();clearTimeout(listTimer);listTimer=setTimeout(renderList,180);}
@@ -26,12 +23,12 @@ function updateMetadata(){const note=state.notes.get(state.active);if(!note)retu
 function capture(){const note=state.notes.get(state.active);if(!note)return;note.title=title.textContent.replace(/[\r\n]+/g,' ');note.content=editor.innerHTML;dirty(note);updateMetadata();}
 function selectNote(id){if(state.active&&state.active!==id)save(state.active);state.active=id;const note=state.notes.get(id);title.textContent=note.title;editor.innerHTML=sanitize(note.content);heat.reset();$('editor-scroll').scrollTop=0;closeSidebar();renderList();updateMetadata();renderStatus();}
 async function newNote(){const id=crypto.randomUUID();const note={id,title:'',content:'',created_at:now(),updated_at:now(),version:0};state.notes.set(id,note);dirty(note);selectNote(id);title.focus();return id;}
-async function openNotebook(session){state.storage=session.storage;if(!state.loaded){const notes=await api('/api/notes');state.notes=new Map(notes.map(note=>[note.id,note]));const recovered=await drafts('getAll').catch(()=>[]);for(const draft of recovered){const cloud=state.notes.get(draft.id);if(cloud&&cloud.title===draft.title&&cloud.content===draft.content){await drafts('delete',draft.id);continue;}state.notes.set(draft.id,draft);const q=queue(draft.id);q.generation=1;if(cloud&&cloud.version!==draft.version||!cloud&&draft.version>0)q.error=Object.assign(new Error('A recovered draft differs from the saved note. Keep it as a new note to preserve both.'),{status:409});else schedule(draft.id);}state.loaded=true;if(recovered.length)toast('Drafts recovered.');}
-  $('login-view').hidden=true;$('app-view').hidden=false;if(!state.notes.size)await newNote();else if(!state.active)selectNote([...state.notes.values()].sort((a,b)=>b.updated_at.localeCompare(a.updated_at))[0].id);else{renderStatus();for(const id of state.notes.keys())if(queue(id).error?.status===401){queue(id).error=null;save(id);}}
+async function openNotes(){if(!state.loaded){const notes=await api('/api/notes');state.notes=new Map(notes.map(note=>[note.id,note]));const recovered=await drafts('getAll').catch(()=>[]);for(const draft of recovered){const cloud=state.notes.get(draft.id);if(cloud&&cloud.title===draft.title&&cloud.content===draft.content){await drafts('delete',draft.id);continue;}state.notes.set(draft.id,draft);const q=queue(draft.id);q.generation=1;if(cloud&&cloud.version!==draft.version||!cloud&&draft.version>0)q.error=Object.assign(new Error('A recovered draft differs from the saved note. Keep it as a new note to preserve both.'),{status:409});else schedule(draft.id);}state.loaded=true;if(recovered.length)toast('Drafts recovered.');}
+  if(!state.notes.size)await newNote();else if(!state.active)selectNote([...state.notes.values()].sort((a,b)=>b.updated_at.localeCompare(a.updated_at))[0].id);else{renderStatus();for(const id of state.notes.keys())if(queue(id).error?.status===401){queue(id).error=null;save(id);}}
   registerTools();
 }
 function showLogin(){heat.reset();$('app-view').hidden=true;$('login-view').hidden=false;$('password').value='';$('password').focus();}
-$('login-form').addEventListener('submit',async event=>{event.preventDefault();$('login-error').textContent='';$('login-button').disabled=true;try{const session=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});$('password').value='';await openNotebook(session);}catch(error){$('login-error').textContent=error.message;}finally{$('login-button').disabled=false;}});
+$('login-form').addEventListener('submit',async event=>{event.preventDefault();$('login-error').textContent='';$('login-button').disabled=true;try{const session=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});$('password').value='';await enterApp(session);}catch(error){$('login-error').textContent=error.message;}finally{$('login-button').disabled=false;}});
 $('new-note').addEventListener('click',()=>newNote());
 for(const element of [title,editor]){element.addEventListener('input',event=>{if(!event.isComposing)capture();});element.addEventListener('compositionend',capture);}
 title.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();editor.focus();}});
@@ -39,7 +36,7 @@ title.addEventListener('paste',event=>{event.preventDefault();document.execComma
 $('save-status').addEventListener('click',()=>flush());
 $('retry-save').addEventListener('click',()=>{const failed=[...state.queues.values()].find(q=>q.error);if(failed?.error.status===401){showLogin();return;}for(const[id,q]of state.queues){if(q.error?.status!==409){q.error=null;q.retryCount=0;save(id);}}});
 $('copy-recovery').addEventListener('click',async()=>{let id=state.active;if(queue(id).error?.status!==409)id=[...state.queues].find(([,q])=>q.error?.status===409)?.[0];if(!id)return;const old=state.notes.get(id);const copy={...old,id:crypto.randomUUID(),title:(old.title||'Untitled')+' (recovered)',version:0,created_at:now(),updated_at:now()};state.notes.set(copy.id,copy);dirty(copy);selectNote(copy.id);await save(copy.id);if(queue(copy.id).error)return;state.notes.delete(id);state.queues.delete(id);await drafts('delete',id);try{const cloud=(await api('/api/notes')).find(n=>n.id===id);if(cloud)state.notes.set(id,cloud);}catch{}renderList();toast('Recovered copy saved.');});
-$('logout').addEventListener('click',async()=>{if(state.uploading){toast('Let the image finish uploading before signing out.');return;}if(!await flush()){toast('Finish saving your changes before signing out.');return;}try{await api('/api/logout',{method:'POST',body:'{}'});location.reload();}catch(error){toast(error.message);}});
+$('logout').addEventListener('click',async()=>{if(state.uploading){toast('Let the image finish uploading before signing out.');return;}if(!await flush()||!await flushDays()){toast('Finish saving your changes before signing out.');return;}try{await api('/api/logout',{method:'POST',body:'{}'});location.reload();}catch(error){toast(error.message);}});
 $('heat-toggle').setAttribute('aria-pressed',String(heat.enabled));$('heat-toggle').lastChild.textContent=heat.enabled?'Heat on':'Heat off';$('heat-toggle').addEventListener('click',()=>{const enabled=heat.toggle();$('heat-toggle').setAttribute('aria-pressed',String(enabled));$('heat-toggle').lastChild.textContent=enabled?'Heat on':'Heat off';});
 function closeSidebar(){$('sidebar').classList.remove('open');$('sidebar-shade').hidden=true;}
 $('open-sidebar').addEventListener('click',()=>{$('sidebar').classList.add('open');$('sidebar-shade').hidden=false;});$('close-sidebar').addEventListener('click',closeSidebar);$('sidebar-shade').addEventListener('click',closeSidebar);
@@ -60,4 +57,23 @@ window.addEventListener('beforeunload',event=>{if(state.uploading||[...state.que
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});window.addEventListener('online',()=>{for(const[id,q]of state.queues)if(q.error&&![401,409].includes(q.error.status)){q.error=null;q.retryCount=0;save(id);}});
 let toolsRegistered=false;
 function registerTools(){if(toolsRegistered||!document.modelContext?.registerTool)return;toolsRegistered=true;try{document.modelContext.registerTool({name:'list_notes',title:'List notes',description:'List titles and IDs in the signed-in notebook.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:async()=>({notes:[...state.notes.values()].map(({id,title})=>({id,title}))})});document.modelContext.registerTool({name:'create_note',title:'Create a note',description:'Create and save a note, then open it in the editor.',inputSchema:{type:'object',properties:{title:{type:'string'},text:{type:'string'}},required:['title','text'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:true},execute:async input=>{if(typeof input?.title!=='string'||typeof input?.text!=='string')throw Error('Title and text are required.');const id=await newNote();title.textContent=input.title;editor.innerHTML=textWithLinks(input.text);capture();await save(id);if(queue(id).error)throw queue(id).error;return{id,title:input.title,saved:true};}});}catch{/* Unsupported experimental browser capability does not affect the notebook. */}}
-api('/api/session').then(openNotebook).catch(error=>{if(error.status!==401)$('login-error').textContent=error.message;});
+const MODES={workout:'mode-workout',notes:'mode-notes'};
+const readMode=()=>{const hash=location.hash.replace(/^#\/?/,'');return MODES[hash]?hash:(localStorage.getItem('thermalnote-mode')||'workout');};
+async function setMode(next){
+  if(!MODES[next])next='workout';
+  try{localStorage.setItem('thermalnote-mode',next);}catch{/* Private browsing still switches, it just will not remember. */}
+  if(location.hash!=='#/'+next)history.replaceState(null,'','#/'+next);
+  for(const[name,id]of Object.entries(MODES))$(id).hidden=name!==next;
+  for(const button of document.querySelectorAll('[data-mode]'))button.setAttribute('aria-current',String(button.dataset.mode===next));
+  document.title=next==='workout'?'Lift · Thermalnote':'Thermalnote';
+  try{await (next==='workout'?loadWorkout():openNotes());}catch(error){if(error.status===401)showLogin();else toast(error.message);}
+}
+let started=false;
+async function enterApp(session){
+  state.storage=session.storage;$('login-view').hidden=true;$('app-view').hidden=false;
+  if(!started){started=true;initWorkout({onUnauthorized:showLogin});}
+  await setMode(readMode());
+}
+document.addEventListener('click',event=>{const target=event.target.closest('[data-mode]');if(target)setMode(target.dataset.mode);});
+window.addEventListener('hashchange',()=>setMode(readMode()));
+api('/api/session').then(enterApp).catch(error=>{if(error.status!==401)$('login-error').textContent=error.message;});

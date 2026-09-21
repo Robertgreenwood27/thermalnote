@@ -65,6 +65,13 @@ export async function createApp({env=process.env,dataDirectory=env.DATA_DIR||pat
           if(req.method==='PUT'){if(typeof input.title!=='string'||typeof input.content!=='string')throw fail('A note needs text.');const note=await storage.save({id,title:input.title,content:input.content},input.version);return json(res,200,note);}
           if(req.method==='DELETE'){await storage.remove(id,input.version);return json(res,200,{ok:true});}
         }
+        if(pathname==='/api/days'&&req.method==='GET')return json(res,200,await storage.listDays());
+        if(pathname.startsWith('/api/days/')&&req.method==='PUT'){
+          const date=pathname.slice('/api/days/'.length);if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw fail('Invalid day.');
+          const input=await body(req,1024*1024);if(!Number.isSafeInteger(input.version)||input.version<0)throw fail('Invalid day version.');
+          if(!input.data||typeof input.data!=='object'||Array.isArray(input.data))throw fail('A day needs data.');
+          return json(res,200,await storage.saveDay(date,input.data,input.version));
+        }
         if(pathname==='/api/images/sign'&&req.method==='POST'){
           if(!storage.signUpload)throw fail('Direct upload is unavailable.',400);
           const input=await body(req,4096);
@@ -82,7 +89,7 @@ export async function createApp({env=process.env,dataDirectory=env.DATA_DIR||pat
         }
         throw fail('Not found.',404);
       }
-      const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/heat.js':'heat.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/favicon.ico':'favicon.ico','/favicon.png':'favicon.png','/apple-touch-icon.png':'apple-touch-icon.png'};
+      const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/heat.js':'heat.js','/core.js':'core.js','/workout.js':'workout.js','/movements.js':'movements.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/favicon.ico':'favicon.ico','/favicon.png':'favicon.png','/apple-touch-icon.png':'apple-touch-icon.png'};
       if(!publicFiles[pathname]||!['GET','HEAD'].includes(req.method))throw fail('Not found.',404);
       const file=publicFiles[pathname],content=await readFile(path.join(project,'public',file));res.writeHead(200,{'Content-Type':types[path.extname(file)]});res.end(req.method==='HEAD'?undefined:content);
     }catch(error){if(!error.status)console.error('Request failed:',error.code||error.name);json(res,error.status||500,{error:error.status?error.message:'Something went wrong saving your changes. Please try again.'});}

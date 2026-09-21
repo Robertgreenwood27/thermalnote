@@ -2,3 +2,89 @@
 
 /* Comfortable, readable labels at every screen size. */
 .note-meta{font-size:.75rem}.tool.labeled,.heat-toggle{font-size:.875rem}.save-status{font-size:.8125rem}@media(max-width:760px){.note-meta{font-size:.75rem}.heat-toggle,.tool.labeled{font-size:.8125rem}.save-status,.statusbar{font-size:.75rem}}
+
+/* Workout mode. Built thumb-first: numbers stay large, chrome stays out of the way. */
+.modes{display:inline-flex;background:#18181b;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;flex:none}
+.modes button{border-radius:999px;padding:7px 15px;font-size:.8125rem;font-weight:600;color:var(--muted);white-space:nowrap}
+.modes button[aria-current='true']{background:var(--accent);color:#21120c}
+.linkish{color:var(--muted);font-size:.8125rem;padding:6px 4px}
+.linkish:hover{color:var(--text)}
+.mode-workout{height:100dvh;display:flex;flex-direction:column;min-height:0}
+.w-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.w-top-right{display:flex;align-items:center;gap:12px}
+.w-pane{flex:1;display:flex;flex-direction:column;min-height:0}
+.w-datebar{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.w-datebar strong{font-weight:500}
+.w-dateblock{flex:1;text-align:center;display:block;min-width:0}
+.w-dateblock button{font-size:1.06rem;font-weight:600;padding:2px 8px;border-radius:7px}
+.w-dateblock small{display:block;color:var(--muted);font-size:.75rem}
+.w-datebar .icon-button{font-size:1.5rem}
+.w-datebar .icon-button:disabled{opacity:.25;cursor:default}
+.w-scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 12px 24px;-webkit-overflow-scrolling:touch}
+.w-summary{margin:0 2px 14px;font-size:.8125rem;color:var(--muted)}
+.empty{color:var(--muted);font-size:.875rem;text-align:center;padding:26px 10px;margin:0}
+
+.mv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 12px 11px;margin-bottom:12px}
+.mv-head{display:flex;align-items:center;gap:6px}
+.mv-head h3{margin:0;font-size:1rem;font-weight:600;flex:1;min-width:0}
+.mv-look{color:var(--muted);padding:5px 7px;border-radius:6px;line-height:0;display:inline-flex}
+.mv-look:hover{color:var(--accent);background:#232327}
+.mv-drop{color:var(--muted);font-size:1.25rem;line-height:1;padding:2px 6px;border-radius:6px}
+.mv-drop:hover{color:#f6a395}
+.mv-prev{margin:5px 0 11px;font-size:.75rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;line-height:1.5}
+.mv-pb{color:#d8c08a}
+.mv-grid{display:grid;grid-template-columns:24px repeat(var(--cols,3),minmax(0,1fr)) 30px;gap:6px;align-items:center}
+.col-h{font-size:.6875rem;color:var(--muted);text-align:center}
+.set-n{font-size:.8125rem;color:var(--muted);text-align:center}
+.set-in{padding:10px 4px;text-align:center;font-size:1rem;border-radius:8px}
+.set-in.ghost{color:#76767d}
+.set-drop{color:#55555c;font-size:1.1rem;line-height:1;border-radius:6px;height:34px}
+.set-drop:hover{color:#f6a395}
+.mv-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.add-set{font-size:.8125rem;font-weight:600;color:var(--accent);padding:7px 11px;border-radius:7px;background:#1c1618}
+.add-set:hover{background:#261c1e}
+.mv-total{font-size:.8125rem;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.mv-total .up{color:#8fce9b;font-weight:600}
+.mv-total .down{color:#8b8b93}
+
+.w-add{width:100%;padding:13px;border:1px dashed #3a3a40;border-radius:10px;color:var(--text);font-size:.9375rem;font-weight:600;background:#121214}
+.w-add:hover{background:#1a1a1d;border-color:#4d4d55}
+.w-add.quiet{font-weight:500;font-size:.875rem;color:var(--muted);padding:11px;border-style:dashed}
+.food{margin-top:26px}
+.food-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;padding:0 2px}
+.food-head h2{margin:0;font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.food-head span{font-size:.8125rem;color:var(--accent);font-weight:600}
+.meal-row{display:grid;grid-template-columns:minmax(0,1fr) 62px 14px 30px;gap:6px;align-items:center;margin-bottom:7px}
+.meal-name{padding:10px 11px;border-radius:8px;font-size:.9375rem}
+.meal-p{padding:10px 4px;text-align:center;border-radius:8px}
+.meal-g{font-size:.75rem;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.chip{font-size:.75rem;color:var(--muted);background:#18181b;border:1px solid var(--line);border-radius:999px;padding:6px 11px}
+.chip:hover{color:var(--text);border-color:#41414a}
+
+.w-bar{padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel)}
+.day-card{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin-bottom:9px}
+.day-card:hover{border-color:#3d3d44}
+.day-card strong{font-size:.9375rem;font-weight:600}
+.day-card p{margin:4px 0 0;font-size:.8125rem;color:#a5a3ab;line-height:1.5}
+.day-card small{display:block;margin-top:6px;font-size:.75rem;color:var(--muted)}
+
+.picker{padding:0;width:440px;height:min(82dvh,660px);overflow:hidden}
+.picker[open]{display:flex;flex-direction:column}
+.picker-head{display:flex;gap:8px;align-items:center;padding:14px;border-bottom:1px solid var(--line);flex:none}
+.picker-list{flex:1;overflow-y:auto;padding:8px 14px 20px}
+.pick-group h4{margin:16px 0 5px;font-size:.6875rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pick-row{display:flex;align-items:center;gap:4px;border-bottom:1px solid #1b1b1e}
+.pick-name{flex:1;min-width:0;text-align:left;padding:12px 4px;display:flex;align-items:baseline;gap:9px;font-size:.9375rem}
+.pick-name small{color:var(--muted);font-size:.6875rem;flex:none}
+.pick-name:hover{color:var(--accent)}
+.pick-look{color:#5c5c64;padding:9px;border-radius:6px;line-height:0;display:inline-flex}
+.pick-look:hover{color:var(--accent);background:#232327}
+.pick-custom{width:100%;text-align:left;padding:13px 4px;margin-top:10px;color:var(--accent);font-size:.9375rem;font-weight:600}
+
+@media(max-width:760px){
+  .picker{width:100%;max-width:100%;height:88dvh;margin:auto 0 0;border-radius:14px 14px 0 0;border-bottom:0}
+  .mode-workout .modes button{padding:7px 13px}
+  .mv-grid{gap:5px}
+  .set-in{padding:11px 2px}
+}

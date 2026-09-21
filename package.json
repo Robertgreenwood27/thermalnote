@@ -11,6 +11,6 @@
     "start": "node --env-file-if-exists=.env server.mjs",
     "dev": "node --env-file-if-exists=.env --watch server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check public/heat.js && node --check api/index.mjs"
+    "check": "node --check server.mjs && node --check lib/storage.mjs && node --check public/app.js && node --check public/core.js && node --check public/workout.js && node --check public/movements.js && node --check public/heat.js && node --check api/index.mjs"
   }
 }

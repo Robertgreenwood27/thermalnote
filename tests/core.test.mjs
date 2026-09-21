@@ -98,3 +98,48 @@ test('the function handler accepts parsed request bodies and keeps production co
 test('Vercel refuses local storage before creating files',async()=>{
  await assert.rejects(()=>createApp({env:{VERCEL:'1',APP_USERNAME:'test-user',APP_PASSWORD_HASH:'configured'},dataDirectory:'/this-path-must-never-be-created'}),/Vercel requires Supabase/);
 });
+test('a training day is one versioned document and stale writers are refused',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'thermalnote-days-'));let db=await createStorage({},dir);
+ try{const day={movements:[{id:'a',mid:'barbell-curl',name:'Barbell Curl',kind:'weight',sets:[{w:'30',r:'10'}]}],meals:[]};
+ const first=await db.saveDay('2026-09-21',day,0);assert.equal(first.version,1);assert.deepEqual(first.data,day);
+ const second=await db.saveDay('2026-09-21',{...day,meals:[{name:'Eggs',protein:'30'}]},1);assert.equal(second.version,2);
+ await assert.rejects(()=>db.saveDay('2026-09-21',day,1),ConflictError);
+ await assert.rejects(()=>db.saveDay('2026-09-21',day,0),ConflictError);
+ db.close();db=await createStorage({},dir);
+ const days=await db.listDays();assert.equal(days.length,1);assert.equal(days[0].data.meals[0].name,'Eggs');assert.equal(days[0].data.movements[0].sets[0].r,'10');
+ await db.saveDay('2026-09-22',{movements:[],meals:[]},0);assert.deepEqual((await db.listDays()).map(d=>d.date),['2026-09-22','2026-09-21']);
+ }finally{db.close();await rm(dir,{recursive:true,force:true});}
+});
+test('the day API is private, version checked, and rejects malformed dates',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'thermalnote-dayapi-'));const {server}=await createApp({env:{APP_USERNAME:'test-user',APP_PASSWORD_HASH:passwordHash('test-password')},dataDirectory:dir});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;let cookie='';
+ const call=(url,method='GET',data,overrides={})=>fetch(origin+url,{method,headers:{origin,'content-type':'application/json',cookie,...overrides},body:data===undefined?undefined:JSON.stringify(data)});
+ try{assert.equal((await call('/api/days')).status,401);assert.equal((await call('/api/days/2026-09-21','PUT',{data:{},version:0})).status,401);
+ const login=await call('/api/login','POST',{username:'test-user',password:'test-password'});cookie=login.headers.get('set-cookie').split(';')[0];
+ assert.deepEqual(await (await call('/api/days')).json(),[]);
+ assert.equal((await call('/api/days/2026-9-1','PUT',{data:{},version:0})).status,400);
+ assert.equal((await call('/api/days/2026-09-21','PUT',{data:[],version:0})).status,400);
+ assert.equal((await call('/api/days/2026-09-21','PUT',{data:{},version:-1})).status,400);
+ assert.equal((await call('/api/days/2026-09-21','PUT',{data:{movements:[]},version:0},{origin:'https://attacker.example'})).status,403);
+ const save=await call('/api/days/2026-09-21','PUT',{data:{movements:[],meals:[]},version:0});assert.equal(save.status,200);assert.equal((await save.json()).version,1);
+ assert.equal((await call('/api/days/2026-09-21','PUT',{data:{movements:[]},version:0})).status,409);
+ assert.equal((await (await call('/api/days')).json())[0].date,'2026-09-21');
+ assert.equal((await call('/api/days/2026-09-21','DELETE',{version:1})).status,404);
+ }finally{server.close();await rm(dir,{recursive:true,force:true});}
+});
+test('training days roll at 4am and sets summarise the way a log reads',async()=>{
+ const {dayKey,entryVolume,setsText,volumeText}=await import('../public/workout.js');
+ assert.equal(dayKey(new Date(2026,8,21,1,30)),'2026-09-20'); // A 1:30am session belongs to the day before.
+ assert.equal(dayKey(new Date(2026,8,21,3,59)),'2026-09-20');
+ assert.equal(dayKey(new Date(2026,8,21,4,0)),'2026-09-21');
+ assert.equal(dayKey(new Date(2026,8,21,23,30)),'2026-09-21');
+ const messy={kind:'weight',sets:[{w:'30',r:'10'},{w:'30',r:'10'},{w:'30',r:'5'},{w:'20',r:'8'}]};
+ assert.equal(entryVolume(messy),30*10+30*10+30*5+20*8);
+ assert.equal(setsText(messy),'30×10 ×2, 30×5, 20×8');
+ assert.equal(volumeText(messy),'910 lb');
+ assert.equal(setsText({kind:'weight',sets:[{w:'30',r:'10',rir:'2'}]},true),'30×10 RIR2');
+ assert.equal(entryVolume({kind:'weight',sets:[{w:'30',r:''},{w:'30',r:'10'}]}),300); // Blank rows are not sets.
+ assert.equal(volumeText({kind:'time',sets:[{sec:'45'},{sec:'90'}]}),'2:15');
+ assert.equal(setsText({kind:'body',sets:[{r:'12'},{r:'12'},{w:'25',r:'8'}]}),'12 ×2, +25×8');
+ assert.equal(volumeText({kind:'body',sets:[{r:'12'},{r:'10'}]}),'22 reps');
+});

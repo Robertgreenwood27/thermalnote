@@ -20,7 +20,29 @@
       <button id="login-button" class="primary" type="submit">Sign in</button>
     </form>
   </div>
-  <div id="app-view" class="app-shell" hidden>
+  <div id="app-view" hidden>
+  <div id="mode-workout" class="mode-workout" hidden>
+    <header class="w-top"><div class="modes"><button type="button" data-mode="workout">Lift</button><button type="button" data-mode="notes">Notes</button></div><div class="w-top-right"><button id="w-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="w-history-open" class="linkish">History</button></div></header>
+    <div id="w-day" class="w-pane">
+      <div class="w-datebar"><button id="w-prev" class="icon-button" aria-label="Previous day">‹</button><span class="w-dateblock"><button id="w-date">Today</button><small id="w-subdate"></small></span><button id="w-next" class="icon-button" aria-label="Next day">›</button></div>
+      <div class="w-scroll">
+        <p id="w-volume" class="w-summary"></p>
+        <div id="w-movements"></div>
+        <button id="w-add" class="w-add" type="button">+ Add movement</button>
+        <section class="food">
+          <div class="food-head"><h2>Food</h2><span id="w-protein"></span></div>
+          <div id="w-meals"></div>
+          <button id="w-add-meal" class="w-add quiet" type="button">+ Add meal</button>
+        </section>
+      </div>
+      <footer class="w-bar"><button id="w-copy" class="primary" type="button">Copy day</button></footer>
+    </div>
+    <div id="w-history" class="w-pane" hidden>
+      <div class="w-datebar"><button id="w-history-close" class="linkish">‹ Back</button><strong>History</strong></div>
+      <div class="w-scroll" id="w-history-list"></div>
+    </div>
+  </div>
+  <div id="mode-notes" class="app-shell" hidden>
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-top"><button id="new-note" class="new-note"><span aria-hidden="true">＋</span> New note <kbd>Ctrl N</kbd></button><button id="close-sidebar" class="icon-button mobile-only" aria-label="Close notes">×</button></div>
       <div class="section-label"><span>Notes</span><span id="note-count">0</span></div>
@@ -29,7 +51,7 @@
     </aside>
     <button id="sidebar-shade" class="sidebar-shade" aria-label="Close notes" hidden></button>
     <main class="main">
-      <header class="topbar"><div class="breadcrumbs"><button id="open-sidebar" class="icon-button mobile-only" aria-label="Open notes">☰</button><span id="crumb-title">New note</span></div><div class="top-actions"><button id="save-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="delete-note" class="icon-button" aria-label="Delete note" title="Delete note">⌫</button></div></header>
+      <header class="topbar"><div class="breadcrumbs"><button id="open-sidebar" class="icon-button mobile-only" aria-label="Open notes">☰</button><span id="crumb-title">New note</span></div><div class="top-actions"><div class="modes"><button type="button" data-mode="workout">Lift</button><button type="button" data-mode="notes">Notes</button></div><button id="save-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="delete-note" class="icon-button" aria-label="Delete note" title="Delete note">⌫</button></div></header>
       <div id="save-error" class="save-error" role="alert" hidden><span></span><button id="retry-save">Try again</button><button id="copy-recovery" hidden>Keep as new note</button></div>
       <div class="editor-scroll" id="editor-scroll">
         <article class="writing-surface">
@@ -43,7 +65,9 @@
       </div>
       <footer class="statusbar"><span id="word-count">0 words</span></footer>
     </main>
+    </div>
   </div>
+  <dialog id="w-picker" class="picker"><div class="picker-head"><input id="w-search" placeholder="Search movements" aria-label="Search movements" autocomplete="off"><button id="w-picker-close" type="button" class="icon-button" aria-label="Close">×</button></div><div id="w-picker-list" class="picker-list"></div></dialog>
   <dialog id="link-dialog"><form id="link-form"><div class="dialog-heading"><h2>Add a link</h2><button type="button" class="icon-button" id="close-link" aria-label="Close">×</button></div><label for="link-url">Web address</label><input id="link-url" type="url" placeholder="https://" required><label for="link-text">Text <span class="muted">(optional)</span></label><input id="link-text"><p id="link-error" class="error" role="alert"></p><button type="submit" class="primary">Insert link</button></form></dialog>
   <dialog id="delete-dialog"><form method="dialog"><h2>Delete this note?</h2><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="delete" class="danger">Delete note</button></div></form></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
