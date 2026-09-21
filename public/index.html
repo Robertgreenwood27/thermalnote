@@ -51,17 +51,27 @@
     </aside>
     <button id="sidebar-shade" class="sidebar-shade" aria-label="Close notes" hidden></button>
     <main class="main">
-      <header class="topbar"><div class="breadcrumbs"><button id="open-sidebar" class="icon-button mobile-only" aria-label="Open notes">☰</button><span id="crumb-title">New note</span></div><div class="top-actions"><div class="modes"><button type="button" data-mode="workout">Lift</button><button type="button" data-mode="notes">Notes</button></div><button id="save-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="delete-note" class="icon-button" aria-label="Delete note" title="Delete note">⌫</button></div></header>
+      <header class="topbar"><div class="breadcrumbs"><button id="open-sidebar" class="icon-button mobile-only" aria-label="Open notes">☰</button><span id="crumb-title">New note</span></div><div class="top-actions"><div class="modes"><button type="button" data-mode="workout">Lift</button><button type="button" data-mode="notes">Notes</button></div><button id="study-button" class="study-button" title="Review what you marked"><span id="study-count">All cool</span></button><button id="save-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="delete-note" class="icon-button" aria-label="Delete note" title="Delete note">⌫</button></div></header>
       <div id="save-error" class="save-error" role="alert" hidden><span></span><button id="retry-save">Try again</button><button id="copy-recovery" hidden>Keep as new note</button></div>
       <div class="editor-scroll" id="editor-scroll">
         <article class="writing-surface">
           <div class="note-meta"><span id="note-date"></span></div>
           <div id="note-title" class="note-title" contenteditable="true" role="textbox" aria-label="Note title" data-placeholder="Untitled" spellcheck="true"></div>
           <div class="editor-toolbar" role="toolbar" aria-label="Note formatting">
-            <button id="format-bold" class="tool" title="Bold (Ctrl B)" aria-label="Bold"><b>B</b></button><button id="format-italic" class="tool" title="Italic (Ctrl I)" aria-label="Italic"><i>I</i></button><span class="toolbar-divider"></span><button id="add-link" class="tool labeled" title="Insert a link">Link</button><button id="add-image" class="tool labeled" title="Add an image">Image</button><input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" multiple hidden><div class="toolbar-spacer"></div><button id="heat-toggle" class="heat-toggle" aria-pressed="true" title="Toggle heat">Heat on</button>
+            <button id="format-bold" class="tool" title="Bold (Ctrl B)" aria-label="Bold"><b>B</b></button><button id="format-italic" class="tool" title="Italic (Ctrl I)" aria-label="Italic"><i>I</i></button><span class="toolbar-divider"></span><button id="add-link" class="tool labeled" title="Insert a link">Link</button><button id="add-image" class="tool labeled" title="Add an image">Image</button><input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" multiple hidden><span class="toolbar-divider"></span><button id="mark-passage" class="tool labeled" title="Mark this for review (Ctrl M)">Mark</button><div class="toolbar-spacer"></div><button id="heat-toggle" class="heat-toggle" aria-pressed="true" title="Toggle heat">Heat on</button>
           </div>
           <div id="note-body" class="note-body" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Note body" spellcheck="true"></div>
         </article>
+      </div>
+      <div id="study-bar" class="study-bar" hidden>
+        <div class="study-where"><strong id="study-position">1 of 1</strong><span id="study-note">Untitled</span></div>
+        <div class="study-actions">
+          <button id="study-reveal" class="study-reveal">Reveal <kbd>Space</kbd></button>
+          <button class="grade" data-result="forgot" hidden>Forgot <kbd>1</kbd></button>
+          <button class="grade" data-result="hard" hidden>Hard <kbd>2</kbd></button>
+          <button class="grade" data-result="got" hidden>Got it <kbd>3</kbd></button>
+          <button id="study-exit" class="icon-button" aria-label="Leave review" title="Leave review (Esc)">×</button>
+        </div>
       </div>
       <footer class="statusbar"><span id="word-count">0 words</span></footer>
     </main>
@@ -70,5 +80,9 @@
   <dialog id="w-picker" class="picker"><div class="picker-head"><input id="w-search" placeholder="Search movements" aria-label="Search movements" autocomplete="off"><button id="w-picker-close" type="button" class="icon-button" aria-label="Close">×</button></div><div id="w-picker-list" class="picker-list"></div></dialog>
   <dialog id="link-dialog"><form id="link-form"><div class="dialog-heading"><h2>Add a link</h2><button type="button" class="icon-button" id="close-link" aria-label="Close">×</button></div><label for="link-url">Web address</label><input id="link-url" type="url" placeholder="https://" required><label for="link-text">Text <span class="muted">(optional)</span></label><input id="link-text"><p id="link-error" class="error" role="alert"></p><button type="submit" class="primary">Insert link</button></form></dialog>
   <dialog id="delete-dialog"><form method="dialog"><h2>Delete this note?</h2><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="delete" class="danger">Delete note</button></div></form></dialog>
+  <dialog id="image-viewer" class="image-viewer" aria-label="Image viewer">
+    <div class="viewer-actions"><button id="viewer-zoom" class="viewer-button" aria-pressed="false" title="Zoom (+ / − / 0)">Zoom in</button><button id="viewer-full" class="viewer-button" title="Full screen (F)">Full screen</button><button id="viewer-close" class="icon-button" aria-label="Close image" title="Close (Esc)">×</button></div>
+    <img id="viewer-image" alt="">
+  </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body></html>

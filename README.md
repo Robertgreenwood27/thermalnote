@@ -3,7 +3,7 @@
 Two modes behind one sign-in, for the two things being worked on daily.
 
 - **Lift** — a training log built for speed: structured sets, last session's numbers already filled in, personal bests, food and protein, and a copy button that puts the whole day on the clipboard.
-- **Notes** — a private, black notebook with text that cools from red through orange, gold, and blue to white. Notes have titles, autosave, rich text, links, and inline images.
+- **Notes** — a private, black notebook with text that cools from red through orange, gold, and blue to white. Notes have titles, autosave, rich text, links, and inline images. Marked passages carry that same temperature for keeps, so the page shows what you still need to study.
 
 The app opens in whichever mode was used last. The switch in the top bar moves between them, and the mode lives in the address (`#/workout`, `#/notes`), so either one can be pinned to a phone's home screen as its own icon.
 
@@ -69,11 +69,25 @@ A day is stored as one versioned document, so the whole history loads at sign-in
 - Each character's heat is independent. Cooling lasts about four seconds, never blocks editing or saving, and is not included in saved notes. Existing text opens white.
 - Paste links or use **Link**. Ctrl/Cmd-click a link in the editor to open it.
 - Paste, drop, or choose images. PNG, JPEG, WebP, GIF, and AVIF are supported, up to 12 MB each.
+- Click an image to open it over the page, sized to the screen. Click it again or press + and − to zoom, drag to pan, **Full screen** or F fills the display, and Esc or a click outside closes it. Ctrl/Cmd-click an image instead to select it in the editor.
 - Use Ctrl/Cmd+B and Ctrl/Cmd+I, or the formatting buttons. Ctrl/Cmd+N makes a new note while the page has focus (a browser may reserve this shortcut).
 - **Heat on/off** controls the effect. It starts off for reduced-motion preferences. Browsers without the CSS Custom Highlight API still provide a working editor with white text.
 - There is no application-level character limit. Individual saves are subject to the host's request-size limit (4.5 MB on Vercel, 32 MB locally). Pictures upload separately and do not count toward note size.
 - Browser draft backups protect unfinished work. A failed save is visibly marked; the app retries transient failures and offers recovery for conflicting edits from other windows. It never silently overwrites a newer version.
 - Deleted notes are soft-deleted in the database. Images remain in storage so a recovered note can still display them.
+
+## Marking what you do not know
+
+Writing stays writing. The only thing you ever do while taking notes is select a passage you could not repeat back and press Ctrl/Cmd+M, or use **Mark**. There is no rating to choose, no card to author, no deck to file it in: marking *is* the low score. The same gesture on a passage you already marked releases it.
+
+Marks are painted, never wrapped. Nothing is inserted into the note, and the saved text of a note is byte-for-byte what you typed. Each mark is stored beside the text as its own record of the words it holds, its confidence, and its history.
+
+- **Temperature is the signal.** A marked passage glows red when the notebook has no reason to believe you would retrieve it, and cools through orange, gold, and blue as you recall it. A passage you know goes silent — no underline, no tint, indistinguishable from unmarked text. The goal is a cool page.
+- **Confidence decays.** The number behind a mark is not *how well you know it*; it is *how confident the notebook is that you would retrieve it right now*, and that evidence goes stale. Each successful recall extends the half-life (about 14 hours, then 2, 5, 12, 30, and 75 days), so something recalled fifteen times over six months fades far more slowly than something recalled once yesterday. Nothing stays cool forever, so the page reheats on its own and asks again.
+- **Editing a passage voids its confidence.** Change the words inside a mark and it returns to red, because the fact you proved you knew is no longer the fact on the page. Delete the words and the mark goes with them.
+- **Review happens in place.** **◈ n warm** in the top bar counts everything asking for attention across every note, hottest first. It hides the current passage where it sits — the sentence you wrote around it is the prompt — and you answer Forgot, Hard, or Got it (keys 1, 2, 3; Space reveals; Esc leaves). Which side of a definition you marked decides the direction, so `TACACS+` marked alone asks for the acronym and the definition marked alone asks for the meaning.
+- Offsets saved on one day are only a guess about the next. On open, every mark checks that its words are still where it left them, searches the note for them if they moved, and is dropped if they are gone rather than pointed at the wrong text. The notebook says how many it let go.
+- Browsers without the CSS Custom Highlight API keep a fully working editor; marks are still recorded and reviewed, they are simply not painted.
 
 ## Storage configuration
 
@@ -85,7 +99,7 @@ The notes schema and private image bucket were installed on September 16, 2026. 
 
 To connect Supabase:
 
-1. For a new installation, run `supabase.sql`, `supabase-auth.sql`, then `supabase-workout.sql` in this project's SQL editor. They create private notes, version-checked save/delete functions, a private images bucket, durable sessions, a shared login attempt limit, and the training-day table with its own version-checked save. They do not open anonymous access or alter unrelated tables.
+1. For a new installation, run `supabase.sql`, `supabase-auth.sql`, then `supabase-workout.sql` in this project's SQL editor. A notebook installed before study marks existed needs `supabase-marks.sql` once as well; it adds the `marks` column and replaces the save function, and it does not touch a word of existing notes. They create private notes, version-checked save/delete functions, a private images bucket, durable sessions, a shared login attempt limit, and the training-day table with its own version-checked save. They do not open anonymous access or alter unrelated tables.
 2. Set these values in the private `.env` file:
 
    ```dotenv
@@ -111,7 +125,7 @@ npm test
 npm run check
 ```
 
-Tests cover character age tracking, edits in the middle of repeated text, persistent storage, stale-save rejection, login, cross-origin write protection, private image access, image validation, sessions and login limits shared by multiple server instances, training-day storage and its version conflicts, the day API's authentication and date validation, the 4am day boundary, and the set arithmetic behind volume and summaries.
+Tests cover character age tracking, edits in the middle of repeated text, persistent storage, stale-save rejection, login, cross-origin write protection, private image access, image validation, and sessions and login limits shared by multiple server instances. They also cover confidence decay and review, marks riding along with edits, confidence resetting when a marked passage changes, re-anchoring marks whose text has moved, and storing marks beside a note without altering it. On the training side they cover day storage and its version conflicts, the day API's authentication and date validation, the 4am day boundary, and the set arithmetic behind volume and summaries.
 
 See [DEPLOY.md](DEPLOY.md) for the remaining Vercel setup steps.
 

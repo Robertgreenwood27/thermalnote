@@ -1,16 +1,21 @@
 // Heat is transient paint. No wrapper elements, document changes, or saved marks.
 export const COOLING_MS = 4200;
 export const STAGES = [650,1500,2550,3650,4200];
-export function reconcileHeat(previous,next,runs,now,change){
-  if(previous===next)return runs.filter(run=>now-run.born<COOLING_MS);
+// The span of text one edit replaced, in character offsets. Heat and marks both move by it.
+export function diffRange(previous,next,change){
   let start=0,endBefore=previous.length,endAfter=next.length;
   // beforeinput ranges disambiguate typing repeated characters in the middle.
   if(change&&change.start>=0&&change.end>=change.start){
     const inserted=next.length-(previous.length-(change.end-change.start));
-    if(inserted>=0&&previous.slice(0,change.start)===next.slice(0,change.start)&&previous.slice(change.end)===next.slice(change.start+inserted)){start=change.start;endBefore=change.end;endAfter=start+inserted;}
-    else change=null;
+    if(inserted>=0&&previous.slice(0,change.start)===next.slice(0,change.start)&&previous.slice(change.end)===next.slice(change.start+inserted))return{start:change.start,endBefore:change.end,endAfter:change.start+inserted};
   }
-  if(!change){while(start<endBefore&&start<endAfter&&previous[start]===next[start])start++;while(endBefore>start&&endAfter>start&&previous[endBefore-1]===next[endAfter-1]){endBefore--;endAfter--;}}
+  while(start<endBefore&&start<endAfter&&previous[start]===next[start])start++;
+  while(endBefore>start&&endAfter>start&&previous[endBefore-1]===next[endAfter-1]){endBefore--;endAfter--;}
+  return{start,endBefore,endAfter};
+}
+export function reconcileHeat(previous,next,runs,now,change){
+  if(previous===next)return runs.filter(run=>now-run.born<COOLING_MS);
+  const {start,endBefore,endAfter}=diffRange(previous,next,change);
   const delta=endAfter-endBefore,result=[];
   for(const run of runs){if(now-run.born>=COOLING_MS)continue;if(run.start<start)result.push({...run,end:Math.min(run.end,start)});if(run.end>endBefore)result.push({...run,start:Math.max(run.start,endBefore)+delta,end:run.end+delta});}
   if(endAfter>start)result.push({start,end:endAfter,born:now});
