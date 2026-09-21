@@ -40,6 +40,18 @@ Under every movement: what was done last time and its total volume, then the per
 
 **History** lists every past day with its movements, volume, and protein. Any day can be opened and edited.
 
+### The body
+
+**Body** opens a rotatable 3D muscular figure. Drag to turn it, pinch or scroll to zoom, and **Front** / **Back** spin it round without having to work out which way it is facing.
+
+A muscle worked recently is red, and cools over the following days exactly the way a marked passage in Notes does. The red is not a flag but a reading: how much work the muscle took, faded by how long ago it took it. Each logged set counts, a movement's primary muscles take the full stimulus and its secondary muscles a little under half, and the heat halves every 60 hours — so a muscle is about two thirds lit the next morning, a third after three days, and all but cool after a week. Sessions stack without ever passing fully worked. Sets are the unit rather than pounds, because pounds, reps, and seconds are not comparable and set count is what every movement has in common.
+
+Tapping a muscle names it, says when it was last trained and with what, and lists every movement in the catalogue that trains it — the ones it is the point of first, then the ones that also work it. Tapping one of those puts it on today's page, with last time's numbers already filled in, the same as adding it from the picker. Under the figure, when nothing is selected, the muscles with the most heat left in them are ranked, so the question "what is still recovering" is answered without touching the model.
+
+Movements added by hand in the picker are not mapped to muscles yet and stay dark. The mapping lives in `public/muscles.js` as two plain tables — one naming the meshes that make up each muscle, one naming the muscles each movement trains — and the recovery curve lives alone in `public/recovery.js`. Neither knows anything about the 3D view, so either can be changed by editing a line and reloading.
+
+The figure downloads only the first time the Body pane is opened, and nothing is drawn while it is out of sight.
+
 ### Food
 
 Meals are a description and grams of protein, with a running total. Meals eaten recently appear as chips — one tap to log the same thing again.
@@ -125,7 +137,20 @@ npm test
 npm run check
 ```
 
-Tests cover character age tracking, edits in the middle of repeated text, persistent storage, stale-save rejection, login, cross-origin write protection, private image access, image validation, and sessions and login limits shared by multiple server instances. They also cover confidence decay and review, marks riding along with edits, confidence resetting when a marked passage changes, re-anchoring marks whose text has moved, and storing marks beside a note without altering it. On the training side they cover day storage and its version conflicts, the day API's authentication and date validation, the 4am day boundary, and the set arithmetic behind volume and summaries.
+Tests cover character age tracking, edits in the middle of repeated text, persistent storage, stale-save rejection, login, cross-origin write protection, private image access, image validation, and sessions and login limits shared by multiple server instances. They also cover confidence decay and review, marks riding along with edits, confidence resetting when a marked passage changes, re-anchoring marks whose text has moved, and storing marks beside a note without altering it. On the training side they cover day storage and its version conflicts, the day API's authentication and date validation, the 4am day boundary, and the set arithmetic behind volume and summaries. For the body they check that every muscle's meshes exist in the shipped model and every movement targets muscles that exist, that a logged day heats its primary muscles harder than its secondary ones and leaves untrained muscles cold, that heat halves on its half-life and stacked sessions never pass fully worked, and that unlogged sets and unmapped movements contribute nothing.
+
+## The 3D model
+
+`public/body-muscles.glb` is built from [body-anatomy-3d-viewer](https://github.com/hpfrei/body-anatomy-3d-viewer) by hpfrei, whose model comes in turn from [Z-Anatomy](https://www.z-anatomy.com/). Both are licensed **CC BY-SA 4.0**, and so is the model file here: it is an adaptation, so it keeps that licence and its attribution wherever the app is deployed. The licence and the full attribution chain travel with it in [`public/body-muscles.LICENSE.md`](public/body-muscles.LICENSE.md). The rest of Thermalnote is unaffected — the app's own code is not an adaptation of the model. `public/vendor/` holds Three.js r160 (MIT) with its loader and orbit controls, vendored rather than loaded from a CDN because the Content-Security-Policy allows scripts only from this origin.
+
+Rebuilding the model is a one-time step, and only needed if the source model changes:
+
+```sh
+git clone --depth 1 https://github.com/hpfrei/body-anatomy-3d-viewer.git /tmp/bav
+node tools/build-body-model.mjs --source /tmp/bav/public
+```
+
+It drops the skeleton, drops the anatomy encyclopedia embedded in every mesh, and decodes the DRACO compression, taking 7.9 MB down to 2.5 MB. Decoding at build time is deliberate: the browser-side DRACO decoder needs a `blob:` worker and WebAssembly, and widening `script-src` to allow them costs more than the bytes do. Normals are recomputed at load instead of stored, which is invisible on organic shapes and saves 1.3 MB.
 
 See [DEPLOY.md](DEPLOY.md) for the remaining Vercel setup steps.
 

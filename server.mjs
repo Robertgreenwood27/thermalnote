@@ -1,11 +1,11 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createStorage } from './lib/storage.mjs';
 const project=path.dirname(fileURLToPath(import.meta.url));
-const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.ico':'image/x-icon','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.avif':'image/avif'};
+const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.ico':'image/x-icon','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.avif':'image/avif','.glb':'model/gltf-binary'};
 const imageExtensions={'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/gif':'gif','image/avif':'avif'};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const json=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(body));};
@@ -89,9 +89,15 @@ export async function createApp({env=process.env,dataDirectory=env.DATA_DIR||pat
         }
         throw fail('Not found.',404);
       }
-      const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/heat.js':'heat.js','/marks.js':'marks.js','/core.js':'core.js','/workout.js':'workout.js','/movements.js':'movements.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/favicon.ico':'favicon.ico','/favicon.png':'favicon.png','/apple-touch-icon.png':'apple-touch-icon.png'};
+      const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/heat.js':'heat.js','/marks.js':'marks.js','/core.js':'core.js','/workout.js':'workout.js','/movements.js':'movements.js','/muscles.js':'muscles.js','/recovery.js':'recovery.js','/body.js':'body.js','/body3d.js':'body3d.js','/body-muscles.glb':'body-muscles.glb','/vendor/three.module.js':'vendor/three.module.js','/vendor/OrbitControls.js':'vendor/OrbitControls.js','/vendor/GLTFLoader.js':'vendor/GLTFLoader.js','/vendor/BufferGeometryUtils.js':'vendor/BufferGeometryUtils.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/favicon.ico':'favicon.ico','/favicon.png':'favicon.png','/apple-touch-icon.png':'apple-touch-icon.png'};
       if(!publicFiles[pathname]||!['GET','HEAD'].includes(req.method))throw fail('Not found.',404);
-      const file=publicFiles[pathname],content=await readFile(path.join(project,'public',file));res.writeHead(200,{'Content-Type':types[path.extname(file)]});res.end(req.method==='HEAD'?undefined:content);
+      // The 3D body and the vendored Three.js are megabytes that rarely change. `no-cache` still
+      // asks every time, but an unchanged file answers 304 instead of sending itself again.
+      const file=publicFiles[pathname],info=await stat(path.join(project,'public',file));
+      const etag=`W/"${info.size.toString(36)}-${Math.round(info.mtimeMs).toString(36)}"`;
+      res.setHeader('Cache-Control','no-cache');res.setHeader('ETag',etag);
+      if(req.headers['if-none-match']===etag){res.writeHead(304);return res.end();}
+      const content=await readFile(path.join(project,'public',file));res.writeHead(200,{'Content-Type':types[path.extname(file)]});res.end(req.method==='HEAD'?undefined:content);
     }catch(error){if(!error.status)console.error('Request failed:',error.code||error.name);json(res,error.status||500,{error:error.status?error.message:'Something went wrong saving your changes. Please try again.'});}
   };
   const server=http.createServer(handler);

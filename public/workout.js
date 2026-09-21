@@ -1,5 +1,6 @@
 import { $, api, toast, backup, now } from './core.js';
 import { GROUPS, CATALOGUE, byId, slug, imageSearch } from './movements.js';
+import { initBody, openBody, closeBody } from './body.js';
 // A training day runs 4am to 4am, so a late-night session lands on the day it belonged to.
 const DAY_START=4;
 const FIELDS={weight:[['w','lb','decimal'],['r','reps','numeric'],['rir','RIR','numeric']],body:[['r','reps','numeric'],['w','+lb','decimal'],['rir','RIR','numeric']],time:[['sec','sec','numeric']]};
@@ -14,6 +15,9 @@ const fmt=value=>Number.isInteger(value)?String(value):String(Math.round(value*1
 const group=value=>Math.round(value).toLocaleString();
 export function dayKey(at=new Date()){const shifted=new Date(at.getTime()-DAY_START*3600*1000);return `${shifted.getFullYear()}-${String(shifted.getMonth()+1).padStart(2,'0')}-${String(shifted.getDate()).padStart(2,'0')}`;}
 const asDate=key=>new Date(`${key}T12:00:00`);
+// A day is placed at its own midday. Nothing records the hour a set was done, and with a
+// recovery half-life measured in days a few hours either way does not change the colour.
+export const dayTime=key=>asDate(key).getTime();
 const longDate=key=>new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(asDate(key));
 const shortDate=key=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'}).format(asDate(key));
 const shiftDay=(key,days)=>{const date=asDate(key);date.setDate(date.getDate()+days);return dayKey(new Date(date.getTime()+DAY_START*3600*1000));};
@@ -136,6 +140,13 @@ function renderHistory(){
   if(!days.length)list.append(el('p','empty','Nothing logged yet.'));
 }
 
+// ---- panes --------------------------------------------------------------
+const PANES={day:'w-day',history:'w-history',body:'w-body'};
+function showPane(name){
+  for(const[pane,id]of Object.entries(PANES))$(id).hidden=pane!==name;
+  if(name!=='body')closeBody();
+}
+
 // ---- the movement picker ------------------------------------------------
 function knownMovements(){
   const all=new Map(CATALOGUE.map(movement=>[movement.id,movement]));
@@ -216,6 +227,13 @@ function editSet(target){
 }
 export function initWorkout({onUnauthorized}={}){
   state.unauthorized=onUnauthorized;state.viewing=dayKey();
+  // Tapping a movement under a muscle puts it on today's page, which is the whole point of
+  // showing it there: the body answers "what should I train", the day answers "with what".
+  initBody({days:()=>state.days,dayTime,addMovement:mid=>{
+    const movement=knownMovements().get(mid);if(!movement)return;
+    if(state.viewing!==dayKey())state.viewing=dayKey();
+    showPane('day');renderDay();addMovement(movement);
+  }});
   $('w-movements').addEventListener('input',event=>{if(event.target.classList.contains('set-in'))editSet(event.target);});
   $('w-movements').addEventListener('click',event=>{
     const action=event.target.dataset.act;if(!action)return;
@@ -251,11 +269,13 @@ export function initWorkout({onUnauthorized}={}){
     if(action==='pick'){const movement=knownMovements().get(event.target.closest('[data-act]').dataset.mid);$('w-picker').close();addMovement(movement);}
     if(action==='pick-custom'){const name=$('w-search').value.trim();if(!name)return;$('w-picker').close();addMovement({id:slug(name),name,group:'custom',kind:'weight'});}
   });
-  $('w-history-open').addEventListener('click',()=>{renderHistory();$('w-day').hidden=true;$('w-history').hidden=false;});
-  $('w-history-close').addEventListener('click',()=>{$('w-history').hidden=true;$('w-day').hidden=false;});
+  $('w-history-open').addEventListener('click',()=>{renderHistory();showPane('history');});
+  $('w-history-close').addEventListener('click',()=>showPane('day'));
+  $('w-body-open').addEventListener('click',()=>{showPane('body');openBody();});
+  $('w-body-close').addEventListener('click',()=>showPane('day'));
   $('w-history-list').addEventListener('click',event=>{
     const card=event.target.closest('[data-act="open-day"]');if(!card)return;
-    state.viewing=card.dataset.date;$('w-history').hidden=true;$('w-day').hidden=false;renderDay();
+    state.viewing=card.dataset.date;showPane('day');renderDay();
   });
   $('w-copy').addEventListener('click',async()=>{
     const doc=docFor(state.viewing);

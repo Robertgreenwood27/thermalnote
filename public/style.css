@@ -133,3 +133,33 @@
 .viewer-button:hover{background:#2c2c32;color:#fff}
 .viewer-actions .icon-button{background:#1b1b1fe6;border:1px solid #3a3a40;color:#cfcfd4}
 @media(max-width:760px){.viewer-actions{top:10px;right:10px;gap:6px}.viewer-button{padding:7px 10px;font-size:.75rem}}
+
+/* The body. A muscle worked recently is red and cools over days, the same way a marked passage does. */
+.body-sides{margin-left:auto;display:inline-flex;background:#18181b;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.body-sides button{border-radius:999px;padding:6px 13px;font-size:.75rem;font-weight:600;color:var(--muted)}
+.body-sides button:hover{color:var(--text)}
+/* The canvas is taken out of flow: left in it, its drawing buffer sets a minimum height and
+   the body spills over the panel below. */
+.body-stage{flex:1;position:relative;min-height:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#17141a,var(--bg) 70%)}
+.body-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.body-note{position:absolute;inset:auto 0 50% 0;margin:0;text-align:center;color:var(--muted);font-size:.875rem;pointer-events:none}
+.body-panel{border-top:1px solid var(--line);background:var(--panel);padding:12px 14px 16px;max-height:44%;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#353538 transparent}
+.body-head{display:flex;align-items:center;gap:8px}
+.body-head h3{margin:0;font-size:1.06rem;font-weight:600;flex:1;min-width:0}
+.body-clear{color:var(--muted);font-size:1.15rem;height:30px;min-width:30px;border-radius:6px}
+.body-clear:hover{background:#252528;color:var(--text)}
+.body-hint,.body-state{margin:6px 0 0;font-size:.8125rem;line-height:1.55;color:var(--muted)}
+.body-state{color:#c9c6cc}
+.body-label{margin:14px 0 8px;font-size:.75rem;color:var(--muted)}
+.body-moves{display:flex;flex-wrap:wrap;gap:7px}
+.body-move{display:inline-flex;align-items:baseline;gap:6px;padding:9px 12px;border-radius:999px;border:1px solid var(--line);background:#18181b;font-size:.8125rem}
+.body-move:hover{background:#252528}
+.body-move small{color:var(--muted);font-size:.6875rem}
+.body-ranking{margin-top:11px;display:grid;gap:3px}
+.body-rank{display:grid;grid-template-columns:minmax(88px,1fr) minmax(56px,2fr) auto;align-items:center;gap:10px;padding:7px 8px;border-radius:7px;text-align:left;font-size:.8125rem}
+.body-rank:hover{background:#1c1c1f}
+.body-rank-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.body-rank-bar{height:5px;border-radius:999px;background:#232326;overflow:hidden}
+.body-rank-fill{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#8d3a22,#ff3a24)}
+.body-rank small{color:var(--muted);font-size:.6875rem;white-space:nowrap}
+@media(min-width:760px){.body-panel{max-height:38%;padding:14px 22px 20px}}

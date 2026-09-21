@@ -22,7 +22,7 @@
   </div>
   <div id="app-view" hidden>
   <div id="mode-workout" class="mode-workout" hidden>
-    <header class="w-top"><div class="modes"><button type="button" data-mode="workout">Lift</button><button type="button" data-mode="notes">Notes</button></div><div class="w-top-right"><button id="w-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="w-history-open" class="linkish">History</button></div></header>
+    <header class="w-top"><div class="modes"><button type="button" data-mode="workout">Lift</button><button type="button" data-mode="notes">Notes</button></div><div class="w-top-right"><button id="w-status" class="save-status" title="Save now" aria-live="polite">Saved</button><button id="w-body-open" class="linkish">Body</button><button id="w-history-open" class="linkish">History</button></div></header>
     <div id="w-day" class="w-pane">
       <div class="w-datebar"><button id="w-prev" class="icon-button" aria-label="Previous day">‹</button><span class="w-dateblock"><button id="w-date">Today</button><small id="w-subdate"></small></span><button id="w-next" class="icon-button" aria-label="Next day">›</button></div>
       <div class="w-scroll">
@@ -40,6 +40,11 @@
     <div id="w-history" class="w-pane" hidden>
       <div class="w-datebar"><button id="w-history-close" class="linkish">‹ Back</button><strong>History</strong></div>
       <div class="w-scroll" id="w-history-list"></div>
+    </div>
+    <div id="w-body" class="w-pane" hidden>
+      <div class="w-datebar"><button id="w-body-close" class="linkish">‹ Back</button><strong>Body</strong><span class="body-sides"><button id="w-body-front" type="button">Front</button><button id="w-body-back" type="button">Back</button></span></div>
+      <div class="body-stage"><canvas id="w-body-canvas"></canvas><p id="w-body-note" class="body-note">Loading the body…</p></div>
+      <div id="w-body-panel" class="body-panel"></div>
     </div>
   </div>
   <div id="mode-notes" class="app-shell" hidden>
