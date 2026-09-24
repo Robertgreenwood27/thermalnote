@@ -73,6 +73,8 @@ Chicken bowl — 55 g protein
 Total protein: 55 g
 ```
 
+**Copy all** in History does the same for every logged day at once, oldest first, with a divider between days. The "prev" lines are left out there, since each day already sits right after the one before it.
+
 A day is stored as one versioned document, so the whole history loads at sign-in and previous bests appear instantly with nothing to fetch. Unsaved changes are mirrored to the browser and replayed if a save is interrupted.
 
 ## Notes and images

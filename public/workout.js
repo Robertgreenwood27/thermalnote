@@ -190,14 +190,14 @@ function addMovement(movement){
 }
 
 // ---- clipboard ----------------------------------------------------------
-export function dayText(doc){
+export function dayText(doc,{previous:withPrevious=true}={}){
   const lines=[longDate(doc.date)+`, ${asDate(doc.date).getFullYear()}`];
   const done=doc.data.movements.filter(entry=>logged(entry).length);
   if(done.length){
     lines.push('','WORKOUT');
     for(const entry of done){
       lines.push(`${entry.name} — ${setsText(entry,true)} · ${volumeText(entry)}`);
-      const history=previous(entry.mid,doc.date);
+      const history=withPrevious&&previous(entry.mid,doc.date);
       if(history){const delta=entryVolume(entry)-entryVolume(history.entry);lines.push(`  prev ${shortDate(history.date)} — ${setsText(history.entry)} · ${volumeText(history.entry)}${delta?` (${delta>0?'+':''}${group(delta)})`:''}`);}
     }
     const volume=dayVolume(doc);if(volume)lines.push(`Day volume: ${group(volume)} lb`);
@@ -210,6 +210,14 @@ export function dayText(doc){
   }
   if(doc.data.note?.trim())lines.push('','NOTES',doc.data.note.trim());
   return lines.join('\n');
+}
+// The whole log, oldest first. Each day already sits beside the one before it, so the "prev" lines would only repeat it.
+export function allDaysText(docs){
+  const days=[...docs].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!days.length)return '';
+  const span=key=>new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric'}).format(asDate(key));
+  const head=`TRAINING LOG — ${days.length} ${days.length===1?'day':'days'}, ${span(days[0].date)} to ${span(days.at(-1).date)}`;
+  return head+'\n\n'+days.map(doc=>dayText(doc,{previous:false})).join('\n\n----------\n\n');
 }
 async function copy(text){
   try{await navigator.clipboard.writeText(text);return true;}
@@ -276,6 +284,11 @@ export function initWorkout({onUnauthorized}={}){
   $('w-history-list').addEventListener('click',event=>{
     const card=event.target.closest('[data-act="open-day"]');if(!card)return;
     state.viewing=card.dataset.date;showPane('day');renderDay();
+  });
+  $('w-copy-all').addEventListener('click',async()=>{
+    const days=[...state.days.values()].filter(hasContent);
+    if(!days.length){toast('Nothing logged yet.');return;}
+    toast(await copy(allDaysText(days))?`${days.length} ${days.length===1?'day':'days'} copied. Paste it anywhere.`:'Copying was blocked. Select the text manually.');
   });
   $('w-copy').addEventListener('click',async()=>{
     const doc=docFor(state.viewing);

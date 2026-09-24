@@ -186,3 +186,5 @@
 .studying .note-body .card{cursor:default}
 .note-body .card[data-armed]{border-style:dashed;border-color:var(--heat-red);background:#2a1110}
 .note-body .card[data-armed]::after{content:'Backspace again to delete';color:var(--heat-red)}
+.copy-all{margin-left:auto;font-size:.8125rem;font-weight:600;color:var(--accent);padding:7px 12px;border-radius:7px;background:#2a1f00}
+.copy-all:hover{background:#3a2a00}
