@@ -1,7 +1,8 @@
 import { HeatLayer } from './heat.js';
 import { $, api, toast, backup, escapeHTML, now } from './core.js';
 import { initWorkout, loadWorkout, flushDays } from './workout.js';
-import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review, toggleMark, trimRange } from './marks.js';
+import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review } from './marks.js';
+import { CARD_ATTRS, cardsIn, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
 const title=$('note-title'), editor=$('note-body');
 const drafts=(action,value)=>backup('drafts',action,value);
 const heat=new HeatLayer([title,editor]);
@@ -9,7 +10,7 @@ const marks=new MarkLayer(editor);
 const state={notes:new Map(),queues:new Map(),active:null,loaded:false,storage:'local',uploading:0,study:null};
 let listTimer,bookmark;
 function safeURL(value){try{const url=new URL(value);return ['http:','https:','mailto:'].includes(url.protocol)?url.href:null;}catch{return null;}}
-function sanitize(html){const template=document.createElement('template');template.innerHTML=html;const allowed=new Set(['P','DIV','BR','STRONG','B','EM','I','A','IMG','BLOCKQUOTE','UL','OL','LI','PRE','CODE','H1','H2','H3','HR','S','U']);for(const element of [...template.content.querySelectorAll('*')]){if(!allowed.has(element.tagName)){if(['SCRIPT','STYLE','IFRAME','OBJECT','SVG','MATH','FORM','INPUT','BUTTON'].includes(element.tagName))element.remove();else element.replaceWith(...element.childNodes);continue;}const href=element.getAttribute('href'),src=element.getAttribute('src'),alt=element.getAttribute('alt');for(const attr of [...element.attributes])element.removeAttribute(attr.name);if(element.tagName==='A'){const url=safeURL(href);if(url){element.href=url;element.target='_blank';element.rel='noopener noreferrer';}else element.replaceWith(...element.childNodes);}if(element.tagName==='IMG'){if(src&&(/^\/media\/[\da-f-]{36}\.(png|jpg|webp|gif|avif)$/.test(src)||/^https:\/\//i.test(src))){element.src=src;element.alt=alt||'Note image';element.loading='lazy';element.referrerPolicy='no-referrer';}else element.remove();}}return template.innerHTML;}
+function sanitize(html){const template=document.createElement('template');template.innerHTML=html;const allowed=new Set(['P','DIV','BR','STRONG','B','EM','I','A','IMG','BLOCKQUOTE','UL','OL','LI','PRE','CODE','H1','H2','H3','HR','S','U']);for(const element of [...template.content.querySelectorAll('*')]){if(!allowed.has(element.tagName)){if(['SCRIPT','STYLE','IFRAME','OBJECT','SVG','MATH','FORM','INPUT','BUTTON'].includes(element.tagName))element.remove();else element.replaceWith(...element.childNodes);continue;}const href=element.getAttribute('href'),src=element.getAttribute('src'),alt=element.getAttribute('alt'),cardPart=element.tagName==='DIV'&&['card','card-front','card-back'].find(name=>element.classList.contains(name)),cardData=cardPart==='card'?CARD_ATTRS.map(name=>[name,element.getAttribute(name)]).filter(([,value])=>value&&/^[\w-]{1,40}$/.test(value)):[];for(const attr of [...element.attributes])element.removeAttribute(attr.name);if(cardPart){element.className=cardPart;for(const[name,value]of cardData)element.setAttribute(name,value);}if(element.tagName==='A'){const url=safeURL(href);if(url){element.href=url;element.target='_blank';element.rel='noopener noreferrer';}else element.replaceWith(...element.childNodes);}if(element.tagName==='IMG'){if(src&&(/^\/media\/[\da-f-]{36}\.(png|jpg|webp|gif|avif)$/.test(src)||/^https:\/\//i.test(src))){element.src=src;element.alt=alt||'Note image';element.loading='lazy';element.referrerPolicy='no-referrer';}else element.remove();}}return template.innerHTML;}
 function plain(html){const node=document.createElement('div');node.innerHTML=sanitize(html).replace(/<\/(?:p|div|li|h[1-6])>|<br\s*\/?>/gi,' ');return node.textContent||'';}
 function cacheDraft(note){drafts('put',{...note}).catch(()=>{const q=queue(note.id);q.draftWarning=true;renderStatus();});}
 function queue(id){if(!state.queues.has(id))state.queues.set(id,{generation:0,saved:0,busy:null,timer:null,maxTimer:null,error:null,retryCount:0});return state.queues.get(id);}
@@ -19,11 +20,11 @@ async function save(id){const note=state.notes.get(id);if(!note)return;const q=q
   q.busy=(async()=>{renderStatus();try{const result=await api(`/api/notes/${id}`,{method:'PUT',body:JSON.stringify(payload)});note.version=result.version;note.created_at=result.created_at;if(generation===q.generation)note.updated_at=result.updated_at;q.saved=generation;q.error=null;q.retryCount=0;if(q.generation===generation)await drafts('delete',id).catch(()=>{});else cacheDraft(note);renderList();}catch(error){q.error=error;if(![401,409].includes(error.status)&&q.retryCount<4){q.retryCount++;q.timer=setTimeout(()=>save(id),Math.min(30000,1500*2**q.retryCount));}}finally{q.busy=null;renderStatus();if(!q.error&&q.generation>generation)save(id);}})();return q.busy;
 }
 async function flush(){const pending=[...state.notes.keys()];await Promise.all(pending.map(async id=>{await save(id);const q=queue(id);if(!q.error&&q.saved<q.generation)await save(id);}));return pending.every(id=>{const q=queue(id);return q.saved===q.generation;});}
-function renderList(){const list=$('note-list');list.replaceChildren();const moment=Date.now();const notes=[...state.notes.values()].sort((a,b)=>b.updated_at.localeCompare(a.updated_at));$('note-count').textContent=notes.length;for(const note of notes){const button=document.createElement('button');button.className='note-card'+(note.id===state.active?' active':'');button.setAttribute('aria-current',note.id===state.active?'page':'false');const heading=document.createElement('strong');heading.textContent=note.title||'Untitled';const excerpt=document.createElement('p');excerpt.textContent=plain(note.content).replace(/\s+/g,' ').trim().slice(0,160)||(note.content.includes('<img')?'Image':'');excerpt.hidden=!excerpt.textContent;const time=document.createElement('small');time.textContent=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(new Date(note.updated_at));const warm=(note.marks||[]).filter(mark=>isDue(mark,moment)).length;if(warm){const badge=document.createElement('b');badge.className='warm-badge';badge.textContent=`${warm} warm`;time.append(' · ',badge);}button.append(heading,excerpt,time);button.addEventListener('click',()=>{endStudy();selectNote(note.id);});list.append(button);}if(!notes.length){list.innerHTML='<p class="list-empty">No notes</p>';}}
+function renderList(){const list=$('note-list');list.replaceChildren();const moment=Date.now();const notes=[...state.notes.values()].sort((a,b)=>b.updated_at.localeCompare(a.updated_at));$('note-count').textContent=notes.length;for(const note of notes){const button=document.createElement('button');button.className='note-card'+(note.id===state.active?' active':'');button.setAttribute('aria-current',note.id===state.active?'page':'false');const heading=document.createElement('strong');heading.textContent=note.title||'Untitled';const excerpt=document.createElement('p');excerpt.textContent=plain(note.content).replace(/\s+/g,' ').trim().slice(0,160)||(note.content.includes('<img')?'Image':'');excerpt.hidden=!excerpt.textContent;const time=document.createElement('small');time.textContent=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(new Date(note.updated_at));const warm=(note.marks||[]).filter(mark=>isDue(mark,moment)).length+noteCards(note).filter(card=>isDue(card,moment)).length;if(warm){const badge=document.createElement('b');badge.className='warm-badge';badge.textContent=`${warm} warm`;time.append(' · ',badge);}button.append(heading,excerpt,time);button.addEventListener('click',()=>{endStudy();selectNote(note.id);});list.append(button);}if(!notes.length){list.innerHTML='<p class="list-empty">No notes</p>';}}
 function renderStatus(){const q=state.active?queue(state.active):null;const failed=[...state.queues.values()].find(item=>item.error);const pending=[...state.queues.values()].some(item=>item.saved<item.generation);const saving=[...state.queues.values()].some(item=>item.busy);const status=$('save-status');status.dataset.state=failed?'error':(pending||saving||state.uploading)?'saving':'saved';status.textContent=failed?'Save failed':state.uploading?'Adding image…':(pending||saving)?'Saving…':'Saved';const error=q?.error||failed;$('save-error').hidden=!error&&!q?.draftWarning;if(error){$('save-error').querySelector('span').textContent=error.message;$('retry-save').textContent=error.status===401?'Sign in again':'Try again';$('retry-save').hidden=error.status===409;$('copy-recovery').hidden=error.status!==409;}else if(q?.draftWarning){$('save-error').querySelector('span').textContent='Local draft backup is unavailable. Keep this tab open until changes are saved.';$('retry-save').hidden=false;$('copy-recovery').hidden=true;}}
 function updateMetadata(){const note=state.notes.get(state.active);if(!note)return;const words=(editor.innerText||'').trim().split(/\s+/).filter(Boolean).length;$('word-count').textContent=`${words.toLocaleString()} ${words===1?'word':'words'}`;$('crumb-title').textContent=note.title||'Untitled';$('note-date').textContent=new Intl.DateTimeFormat(undefined,{month:'long',day:'numeric',year:'numeric'}).format(new Date(note.created_at));document.title=`${note.title||'Untitled'} · Thermalnote`;}
-function capture(){const note=state.notes.get(state.active);if(!note)return;note.title=title.textContent.replace(/[\r\n]+/g,' ');note.content=editor.innerHTML;note.marks=marks.sync();dirty(note);updateMetadata();renderStudy();}
-function selectNote(id){if(state.active&&state.active!==id)save(state.active);state.active=id;const note=state.notes.get(id);title.textContent=note.title;editor.innerHTML=sanitize(note.content);heat.reset();
+function capture(){const note=state.notes.get(state.active);if(!note)return;note.title=title.textContent.replace(/[\r\n]+/g,' ');note.content=serializeNote(editor.innerHTML);note.marks=marks.sync();dirty(note);updateMetadata();renderStudy();}
+function selectNote(id){if(state.active&&state.active!==id)save(state.active);state.active=id;const note=state.notes.get(id);title.textContent=note.title;editor.innerHTML=sanitize(note.content);normalizeCards(editor,!state.study);paintCards(editor);heat.reset();
   // Words can move or vanish between sessions. Marks that still find their text come back; the rest are let go.
   const anchored=anchorMarks(note.marks||[],editor.textContent);const lost=(note.marks||[]).length-anchored.length;note.marks=anchored;marks.load(anchored);
   if(lost)toast(`${lost} ${lost===1?'mark':'marks'} lost the words ${lost===1?'it was':'they were'} holding.`);
@@ -44,56 +45,116 @@ $('retry-save').addEventListener('click',()=>{const failed=[...state.queues.valu
 $('copy-recovery').addEventListener('click',async()=>{let id=state.active;if(queue(id).error?.status!==409)id=[...state.queues].find(([,q])=>q.error?.status===409)?.[0];if(!id)return;const old=state.notes.get(id);const copy={...old,id:crypto.randomUUID(),title:(old.title||'Untitled')+' (recovered)',marks:(old.marks||[]).map(mark=>({...mark})),version:0,created_at:now(),updated_at:now()};state.notes.set(copy.id,copy);dirty(copy);selectNote(copy.id);await save(copy.id);if(queue(copy.id).error)return;state.notes.delete(id);state.queues.delete(id);await drafts('delete',id);try{const cloud=(await api('/api/notes')).find(n=>n.id===id);if(cloud)state.notes.set(id,cloud);}catch{}renderList();toast('Recovered copy saved.');});
 $('logout').addEventListener('click',async()=>{if(state.uploading){toast('Let the image finish uploading before signing out.');return;}if(!await flush()||!await flushDays()){toast('Finish saving your changes before signing out.');return;}try{await api('/api/logout',{method:'POST',body:'{}'});location.reload();}catch(error){toast(error.message);}});
 $('heat-toggle').setAttribute('aria-pressed',String(heat.enabled));$('heat-toggle').lastChild.textContent=heat.enabled?'Heat on':'Heat off';$('heat-toggle').addEventListener('click',()=>{const enabled=heat.toggle();$('heat-toggle').setAttribute('aria-pressed',String(enabled));$('heat-toggle').lastChild.textContent=enabled?'Heat on':'Heat off';});
-// One gesture while writing: this matters, and I could not retrieve it. Sorting it is the notebook's job, not yours.
-function markSelection(){
+// One gesture while writing: select what you could not repeat back and it becomes a card. Its border carries the temperature.
+function afterCardEdit(){paintCards(editor);heat.update(editor);capture();}
+function caretAfter(card){let line=card.nextSibling;if(!line||line.nodeType!==Node.ELEMENT_NODE||line.classList.contains('card')){line=document.createElement('div');line.append(document.createElement('br'));card.after(line);}const range=document.createRange();range.setStart(line,0);range.collapse(true);restoreRange(range);}
+function caretIn(side){side.focus();const range=document.createRange();range.selectNodeContents(side);range.collapse(false);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);}
+function cardSelection(){
   if(state.study)return;
   const note=state.notes.get(state.active);if(!note)return;
   const selection=getSelection();
+  if(!selection.rangeCount||!editor.contains(selection.anchorNode))return toast('Select the words you want to turn into a card.');
+  const range=selection.getRangeAt(0),inside=sideOf(range.startContainer,editor)||sideOf(range.endContainer,editor);
+  // The same gesture inside a card releases it back into the page.
+  if(inside){const parts=unwrapCard(inside.parentElement);afterCardEdit();if(parts.length){const end=document.createRange();end.selectNodeContents(parts.at(-1));end.collapse(false);restoreRange(end);}return toast('Released back into the page.');}
+  if(selection.isCollapsed||!editor.contains(selection.focusNode)||!range.toString().trim()&&!range.cloneContents().querySelector('img'))return toast('Select the words you want to turn into a card.');
+  if([...editor.querySelectorAll('.card')].some(card=>range.intersectsNode(card)))return toast('A card can’t hold another card. Select text outside the cards.');
+  // A passage marked before cards existed hands its history to the card that replaces it.
   note.marks=marks.sync();
-  if(!selection.rangeCount||selection.isCollapsed||!editor.contains(selection.anchorNode)||!editor.contains(selection.focusNode))return toast('Select the words you want to come back to.');
-  const range=selection.getRangeAt(0);
-  const {start,end}=trimRange(marks.text,marks.offset(range.startContainer,range.startOffset),marks.offset(range.endContainer,range.endOffset));
-  if(start<0||end<=start)return toast('Select the words you want to come back to.');
-  const before=note.marks.length;
-  note.marks=marks.marks=toggleMark(note.marks,start,end,marks.text);
-  marks.paint();dirty(note);renderStudy();
-  toast(note.marks.length>before?'Marked. It will come back warm.':'Released.');
+  const start=marks.offset(range.startContainer,range.startOffset),end=marks.offset(range.endContainer,range.endOffset);
+  const covered=note.marks.filter(mark=>mark.start<end&&mark.end>start),seed=[...covered].sort((a,b)=>b.recalls-a.recalls)[0];
+  if(covered.length){note.marks=marks.marks=note.marks.filter(mark=>!covered.includes(mark));marks.paint();}
+  const card=makeCard(range.extractContents(),null,seed);
+  placeCard(editor,range,card);caretAfter(card);afterCardEdit();
+  toast('Card made. Select part of it and press Ctrl B to send it to the back.');
 }
-function dueQueue(){const moment=Date.now();return [...state.notes.values()].flatMap(note=>(note.marks||[]).filter(mark=>isDue(mark,moment)).map(mark=>({noteId:note.id,markId:mark.id,score:retention(mark,moment)}))).sort((a,b)=>a.score-b.score);}
+function sendToBack(){
+  if(state.study)return false;
+  const selection=getSelection();if(!selection.rangeCount||selection.isCollapsed)return false;
+  const range=selection.getRangeAt(0),side=sideOf(range.startContainer,editor);
+  if(!side||sideOf(range.endContainer,editor)!==side)return false;
+  const other=moveToOtherSide(range,side);afterCardEdit();
+  if(other.offsetParent)caretIn(other);else caretIn(side);
+  toast(other.classList.contains('card-back')?'Sent to the back.':'Sent to the front.');
+  return true;
+}
+function finishCard(card){
+  delete card.dataset.editing;card.removeAttribute('data-flipped');
+  const empty=[...card.children].every(side=>!side.textContent.trim()&&!side.querySelector('img'));
+  if(empty){const next=card.nextSibling;card.remove();afterCardEdit();if(next){const range=document.createRange();range.setStart(next,0);range.collapse(true);restoreRange(range);}return;}
+  caretAfter(card);afterCardEdit();
+}
+function flipCard(card){if(card.hasAttribute('data-editing'))return finishCard(card);card.toggleAttribute('data-flipped');}
+// Typing /card at the start of a line or after a space opens a blank card: front, back, Ctrl Enter to finish.
+function slashCard(event){
+  if(state.study||event.isComposing||event.inputType!=='insertText')return;
+  const selection=getSelection();if(!selection.rangeCount||!selection.isCollapsed)return;
+  const node=selection.anchorNode,offset=selection.anchorOffset;
+  if(node?.nodeType!==Node.TEXT_NODE||!editor.contains(node)||sideOf(node,editor)||!/(^|\s)\/card$/.test(node.data.slice(0,offset)))return;
+  const range=document.createRange();range.setStart(node,offset-5);range.setEnd(node,offset);range.deleteContents();
+  const card=makeCard(null,null);card.dataset.editing='';
+  placeCard(editor,range,card);afterCardEdit();caretIn(card.querySelector('.card-front'));
+}
+editor.addEventListener('input',slashCard);
+editor.addEventListener('keydown',event=>{
+  if(state.study)return;
+  const mod=event.ctrlKey||event.metaKey,selection=getSelection(),side=selection.rangeCount?sideOf(selection.anchorNode,editor):null;
+  if(!side)return;
+  const card=side.parentElement;
+  if(mod&&event.key.toLowerCase()==='b'&&sendToBack())return event.preventDefault();
+  if(mod&&event.key==='Enter'){event.preventDefault();finishCard(card);return;}
+  if(event.key==='Tab'&&card.hasAttribute('data-editing')){event.preventDefault();caretIn(card.querySelector(side.classList.contains('card-front')?'.card-back':'.card-front'));}
+});
+editor.addEventListener('click',event=>{if(state.study)return;const card=event.target.closest?.('.card');if(card&&event.target===card)flipCard(card);});
+const cardCache=new Map();
+function noteCards(note){const cached=cardCache.get(note.id);if(cached?.content===note.content)return cached.cards;const cards=cardsIn(note.content);cardCache.set(note.id,{content:note.content,cards});return cards;}
+function findCard(id){return [...editor.querySelectorAll('.card')].find(card=>card.dataset.card===id)||null;}
+function setCardsEditable(editable){for(const card of editor.querySelectorAll('.card'))prepareCard(card,editable);}
+function clearStudied(){const element=state.study?.element;if(element){delete element.dataset.studying;element.removeAttribute('data-flipped');state.study.element=null;}}
+function dueQueue(){const moment=Date.now();return [...state.notes.values()].flatMap(note=>[...(note.marks||[]).filter(mark=>isDue(mark,moment)).map(mark=>({noteId:note.id,markId:mark.id,score:retention(mark,moment)})),...noteCards(note).filter(card=>isDue(card,moment)).map(card=>({noteId:note.id,cardId:card.id,score:retention(card,moment)}))]).sort((a,b)=>a.score-b.score);}
 function renderStudy(){const warm=dueQueue().length;$('study-count').textContent=warm?`${warm} warm`:'All cool';$('study-button').dataset.warm=warm?'yes':'no';}
 function startStudy(){
   const queue=dueQueue();
-  if(!queue.length)return toast('Everything you marked is cool right now.');
-  state.study={queue,index:0,revealed:false};
-  document.body.classList.add('studying');editor.contentEditable='false';title.contentEditable='false';$('study-bar').hidden=false;
+  if(!queue.length)return toast('Every card is cool right now.');
+  state.study={queue,index:0,revealed:false,element:null};
+  document.body.classList.add('studying');editor.contentEditable='false';title.contentEditable='false';setCardsEditable(false);$('study-bar').hidden=false;
   showCard();
 }
 function endStudy(message){
   if(!state.study)return;
-  state.study=null;document.body.classList.remove('studying');editor.contentEditable='true';title.contentEditable='true';$('study-bar').hidden=true;
+  clearStudied();
+  state.study=null;document.body.classList.remove('studying');editor.contentEditable='true';title.contentEditable='true';setCardsEditable(true);$('study-bar').hidden=true;
   marks.hidden=marks.focus=null;marks.paint();renderStudy();renderList();
   if(message)toast(message);
 }
-// The passage is blanked where it sits, so the sentence you wrote around it is still the prompt.
+function centerOn(spot){const scroller=$('editor-scroll'),box=scroller.getBoundingClientRect();scroller.scrollTop+=spot.top-box.top-box.height/2+Math.min(spot.height,box.height)/2;}
+// A card shows its front where it sits; a passage marked before cards existed is blanked, so the sentence around it is the prompt.
 function showCard(){
   const study=state.study;if(!study)return;
-  const card=study.queue[study.index];
-  if(card.noteId!==state.active)selectNote(card.noteId);
-  const note=state.notes.get(card.noteId),mark=(note?.marks||[]).find(item=>item.id===card.markId);
-  if(!mark)return nextCard();
-  study.revealed=false;marks.hidden=marks.focus=mark.id;marks.paint();
+  clearStudied();
+  const item=study.queue[study.index];
+  if(item.noteId!==state.active)selectNote(item.noteId);
+  const note=state.notes.get(item.noteId);
+  study.revealed=false;marks.hidden=marks.focus=null;
+  if(item.cardId){
+    const element=findCard(item.cardId);if(!element)return nextCard();
+    study.element=element;element.dataset.studying='';delete element.dataset.editing;marks.paint();centerOn(element.getBoundingClientRect());
+  }else{
+    const mark=(note?.marks||[]).find(entry=>entry.id===item.markId);if(!mark)return nextCard();
+    marks.hidden=marks.focus=mark.id;marks.paint();
+    const range=marks.ranges(marks.nodes(),mark.start,mark.end)[0];if(range)centerOn(range.getBoundingClientRect());
+  }
   $('study-position').textContent=`${study.index+1} of ${study.queue.length}`;
   $('study-note').textContent=note.title||'Untitled';
   $('study-reveal').hidden=false;for(const button of document.querySelectorAll('.grade'))button.hidden=true;
-  const range=marks.ranges(marks.nodes(),mark.start,mark.end)[0];
-  if(range){const scroller=$('editor-scroll'),box=scroller.getBoundingClientRect(),spot=range.getBoundingClientRect();scroller.scrollTop+=spot.top-box.top-box.height/2+spot.height/2;}
 }
-function revealCard(){const study=state.study;if(!study||study.revealed)return;study.revealed=true;marks.hidden=null;marks.paint();$('study-reveal').hidden=true;for(const button of document.querySelectorAll('.grade'))button.hidden=false;}
+function revealCard(){const study=state.study;if(!study||study.revealed)return;study.revealed=true;if(study.element)study.element.dataset.flipped='';marks.hidden=null;marks.paint();$('study-reveal').hidden=true;for(const button of document.querySelectorAll('.grade'))button.hidden=false;}
 function gradeCard(result){
   const study=state.study;if(!study)return;
   if(!study.revealed)return revealCard();
-  const card=study.queue[study.index],note=state.notes.get(card.noteId);
-  if(note){note.marks=note.marks.map(mark=>mark.id===card.markId?review(mark,result):mark);if(note.id===state.active)marks.marks=note.marks;dirty(note);}
+  const item=study.queue[study.index],note=state.notes.get(item.noteId);
+  if(item.cardId&&study.element){writeState(study.element,review(readState(study.element),result));paintCards(editor);capture();}
+  else if(note){note.marks=note.marks.map(mark=>mark.id===item.markId?review(mark,result):mark);if(note.id===state.active)marks.marks=note.marks;dirty(note);}
   nextCard();
 }
 function nextCard(){const study=state.study;if(++study.index>=study.queue.length)return endStudy('That was the whole warm list. The page is cooler than you left it.');showCard();}
@@ -102,9 +163,11 @@ $('study-exit').addEventListener('click',()=>endStudy());
 $('study-reveal').addEventListener('click',revealCard);
 for(const button of document.querySelectorAll('.grade'))button.addEventListener('click',()=>gradeCard(button.dataset.result));
 $('mark-passage').addEventListener('mousedown',event=>event.preventDefault());
-$('mark-passage').addEventListener('click',markSelection);
+$('mark-passage').addEventListener('click',cardSelection);
+$('send-back').addEventListener('mousedown',event=>event.preventDefault());
+$('send-back').addEventListener('click',()=>{if(!sendToBack())toast('Select words inside a card to move them to its other side.');});
 // Confidence fades on its own, so the page reheats while it sits open.
-setInterval(()=>{if(document.hidden||state.study||!state.loaded)return;marks.paint();renderStudy();},60000);
+setInterval(()=>{if(document.hidden||state.study||!state.loaded)return;marks.paint();paintCards(editor);renderStudy();},60000);
 function closeSidebar(){$('sidebar').classList.remove('open');$('sidebar-shade').hidden=true;}
 $('open-sidebar').addEventListener('click',()=>{$('sidebar').classList.add('open');$('sidebar-shade').hidden=false;});$('close-sidebar').addEventListener('click',closeSidebar);$('sidebar-shade').addEventListener('click',closeSidebar);
 function currentRange(){const selection=getSelection();if(selection.rangeCount&&editor.contains(selection.anchorNode))return selection.getRangeAt(0).cloneRange();const range=document.createRange();range.selectNodeContents(editor);range.collapse(false);return range;}
@@ -114,7 +177,7 @@ $('add-link').addEventListener('mousedown',()=>bookmark=currentRange());$('add-l
 $('link-form').addEventListener('submit',event=>{event.preventDefault();const url=safeURL($('link-url').value);if(!url){$('link-error').textContent='Use a full http:// or https:// address.';return;}$('link-dialog').close();restoreRange(bookmark||currentRange());document.execCommand('insertHTML',false,`<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML($('link-text').value||url)}</a> `);bookmark=null;});
 editor.addEventListener('click',event=>{const link=event.target.closest('a');if(link&&(event.ctrlKey||event.metaKey)){event.preventDefault();const url=safeURL(link.href);if(url)window.open(url,'_blank','noopener,noreferrer');}});
 function textWithLinks(text){return text.split(/(https?:\/\/[^\s<>]+)/g).map((part,index)=>index%2?`<a href="${escapeHTML(part)}" target="_blank" rel="noopener noreferrer">${escapeHTML(part)}</a>`:escapeHTML(part)).join('').replace(/\n/g,'<br>');}
-editor.addEventListener('paste',event=>{event.preventDefault();const files=[...event.clipboardData.files];if(files.length){uploadImages(files,currentRange());return;}const html=event.clipboardData.getData('text/html'),text=event.clipboardData.getData('text/plain');document.execCommand('insertHTML',false,html?sanitize(html):textWithLinks(text));});
+editor.addEventListener('paste',event=>{event.preventDefault();const files=[...event.clipboardData.files];if(files.length){uploadImages(files,currentRange());return;}const html=event.clipboardData.getData('text/html'),text=event.clipboardData.getData('text/plain');document.execCommand('insertHTML',false,html?sanitize(html):textWithLinks(text));normalizeCards(editor);paintCards(editor);});
 $('add-image').addEventListener('mousedown',()=>bookmark=currentRange());$('add-image').addEventListener('click',()=>{bookmark=bookmark||currentRange();$('image-input').click();});$('image-input').addEventListener('change',event=>{uploadImages([...event.target.files],bookmark||currentRange());bookmark=null;event.target.value='';});
 editor.addEventListener('dragover',event=>{if(event.dataTransfer.types.includes('Files')){event.preventDefault();editor.classList.add('dragover');}});editor.addEventListener('dragleave',()=>editor.classList.remove('dragover'));editor.addEventListener('drop',event=>{editor.classList.remove('dragover');if(!event.dataTransfer.files.length)return;event.preventDefault();const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);uploadImages([...event.dataTransfer.files],range&&editor.contains(range.startContainer)?range:currentRange());});
 async function uploadImages(files,range){const noteId=state.active;for(const file of files){if(!['image/png','image/jpeg','image/webp','image/gif','image/avif'].includes(file.type)){toast('Choose a PNG, JPEG, GIF, WebP, or AVIF image.');continue;}if(file.size>12*1024*1024){toast('Choose an image smaller than 12 MB.');continue;}state.uploading++;renderStatus();try{let result;if(state.storage==='supabase'){result=await api('/api/images/sign',{method:'POST',body:JSON.stringify({type:file.type,size:file.size})});const upload=await fetch(result.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file,signal:AbortSignal.timeout(120000)});if(!upload.ok)throw new Error('The image upload did not finish. Please try again.');}else{const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});result=await api('/api/images',{method:'POST',body:JSON.stringify({data,type:file.type})});}const html=`<img src="${escapeHTML(result.src)}" alt="${escapeHTML(file.name||'Note image')}" loading="lazy"><p><br></p>`;if(!state.notes.has(noteId))continue;if(state.active===noteId){const previous=currentRange();restoreRange(editor.contains(range.startContainer)?range:currentRange());document.execCommand('insertHTML',false,html);range=currentRange();if(editor.contains(previous.startContainer))restoreRange(previous);}else{const note=state.notes.get(noteId);note.content+=html;dirty(note);}}catch(error){toast(`Image wasn’t added. ${error.message||'Please try again.'}`);}finally{state.uploading--;renderStatus();}}}
@@ -143,7 +206,7 @@ for(const type of ['pointerup','pointercancel'])viewerImage.addEventListener(typ
 viewer.addEventListener('keydown',event=>{if(event.ctrlKey||event.metaKey)return;if(event.key==='+'||event.key==='=')setZoom(viewerScale*1.4);else if(event.key==='-')setZoom(viewerScale/1.4);else if(event.key==='0')setZoom(1);else if(event.key.toLowerCase()==='f')toggleViewerFullscreen();else return;event.preventDefault();});
 for(const type of ['resize','fullscreenchange'])addEventListener(type,()=>{if(!viewer.open)return;measureViewer();setZoom(viewerScale);});
 $('delete-note').addEventListener('click',()=>$('delete-dialog').showModal());$('delete-dialog').addEventListener('close',async()=>{if($('delete-dialog').returnValue!=='delete')return;const id=state.active;await save(id);const note=state.notes.get(id),q=queue(id);if(q.error){toast('Resolve the save issue before deleting this note.');return;}if(state.uploading){toast('Let the image finish uploading before deleting this note.');return;}try{await api(`/api/notes/${id}`,{method:'DELETE',body:JSON.stringify({version:note.version})});clearTimeout(q.timer);clearTimeout(q.maxTimer);state.notes.delete(id);state.queues.delete(id);await drafts('delete',id);state.active=null;if(state.notes.size)selectNote(state.notes.keys().next().value);else await newNote();toast('Note deleted.');}catch(error){toast(error.message);}});
-document.addEventListener('keydown',event=>{if(viewer.open)return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();flush();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='n'&&state.loaded){event.preventDefault();newNote();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='m'&&state.loaded){event.preventDefault();markSelection();}
+document.addEventListener('keydown',event=>{if(viewer.open)return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();flush();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='n'&&state.loaded){event.preventDefault();newNote();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='m'&&state.loaded){event.preventDefault();cardSelection();}
   if(state.study&&!event.ctrlKey&&!event.metaKey&&!event.altKey){if(event.key===' '||event.key==='Enter'){event.preventDefault();revealCard();}else if(['1','2','3'].includes(event.key)){event.preventDefault();gradeCard(['forgot','hard','got'][Number(event.key)-1]);}}
   if(event.key==='Escape'){endStudy();closeSidebar();}});
 window.addEventListener('beforeunload',event=>{if(state.uploading||[...state.queues.values()].some(q=>q.saved<q.generation)){event.preventDefault();event.returnValue='';}});

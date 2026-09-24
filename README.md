@@ -3,7 +3,7 @@
 Two modes behind one sign-in, for the two things being worked on daily.
 
 - **Lift** — a training log built for speed: structured sets, last session's numbers already filled in, personal bests, food and protein, and a copy button that puts the whole day on the clipboard.
-- **Notes** — a private, black notebook with text that cools from red through orange, gold, and blue to white. Notes have titles, autosave, rich text, links, and inline images. Marked passages carry that same temperature for keeps, so the page shows what you still need to study.
+- **Notes** — a private, black notebook with text that cools from red through orange, gold, and blue to white. Notes have titles, autosave, rich text, links, and inline images. Cards made from your notes carry that same temperature in their borders, so the page shows what you still need to study.
 
 The app opens in whichever mode was used last. The switch in the top bar moves between them, and the mode lives in the address (`#/workout`, `#/notes`), so either one can be pinned to a phone's home screen as its own icon.
 
@@ -78,7 +78,7 @@ A day is stored as one versioned document, so the whole history loads at sign-in
 ## Notes and images
 
 - Notes save automatically after a brief pause and periodically during continuous typing. Click the save status or press Ctrl/Cmd+S to save immediately.
-- Each character's heat is independent. Cooling lasts about four seconds, never blocks editing or saving, and is not included in saved notes. Existing text opens white.
+- Each character's heat is independent. It runs red, orange, yellow, blue, then white. Cooling lasts about four seconds, never blocks editing or saving, and is not included in saved notes. Existing text opens white.
 - Paste links or use **Link**. Ctrl/Cmd-click a link in the editor to open it.
 - Paste, drop, or choose images. PNG, JPEG, WebP, GIF, and AVIF are supported, up to 12 MB each.
 - Click an image to open it over the page, sized to the screen. Click it again or press + and − to zoom, drag to pan, **Full screen** or F fills the display, and Esc or a click outside closes it. Ctrl/Cmd-click an image instead to select it in the editor.
@@ -88,18 +88,18 @@ A day is stored as one versioned document, so the whole history loads at sign-in
 - Browser draft backups protect unfinished work. A failed save is visibly marked; the app retries transient failures and offers recovery for conflicting edits from other windows. It never silently overwrites a newer version.
 - Deleted notes are soft-deleted in the database. Images remain in storage so a recovered note can still display them.
 
-## Marking what you do not know
+## Cards
 
-Writing stays writing. The only thing you ever do while taking notes is select a passage you could not repeat back and press Ctrl/Cmd+M, or use **Mark**. There is no rating to choose, no card to author, no deck to file it in: marking *is* the low score. The same gesture on a passage you already marked releases it.
+Writing stays writing. When a passage is something you could not repeat back, select it and press Ctrl/Cmd+M (or **Card**). It becomes a card where it sits: a block with a front and a back, and its border takes the temperature. There is no deck to file it in.
 
-Marks are painted, never wrapped. Nothing is inserted into the note, and the saved text of a note is byte-for-byte what you typed. Each mark is stored beside the text as its own record of the words it holds, its confidence, and its history.
-
-- **Temperature is the signal.** A marked passage glows red when the notebook has no reason to believe you would retrieve it, and cools through orange, gold, and blue as you recall it. A passage you know goes silent — no underline, no tint, indistinguishable from unmarked text. The goal is a cool page.
-- **Confidence decays.** The number behind a mark is not *how well you know it*; it is *how confident the notebook is that you would retrieve it right now*, and that evidence goes stale. Each successful recall extends the half-life (about 14 hours, then 2, 5, 12, 30, and 75 days), so something recalled fifteen times over six months fades far more slowly than something recalled once yesterday. Nothing stays cool forever, so the page reheats on its own and asks again.
-- **Editing a passage voids its confidence.** Change the words inside a mark and it returns to red, because the fact you proved you knew is no longer the fact on the page. Delete the words and the mark goes with them.
-- **Review happens in place.** **◈ n warm** in the top bar counts everything asking for attention across every note, hottest first. It hides the current passage where it sits — the sentence you wrote around it is the prompt — and you answer Forgot, Hard, or Got it (keys 1, 2, 3; Space reveals; Esc leaves). Which side of a definition you marked decides the direction, so `TACACS+` marked alone asks for the acronym and the definition marked alone asks for the meaning.
-- Offsets saved on one day are only a guess about the next. On open, every mark checks that its words are still where it left them, searches the note for them if they moved, and is dropped if they are gone rather than pointed at the wrong text. The notebook says how many it let go.
-- Browsers without the CSS Custom Highlight API keep a fully working editor; marks are still recorded and reviewed, they are simply not painted.
+- **Splitting a card.** Select part of a card and press Ctrl/Cmd+B (or **To back**) to send it to the back. What stays is the prompt; what moved is the answer. The same keys on the back send words back to the front. Outside a card, Ctrl/Cmd+B is still bold.
+- **Flipping.** Click the strip at the top of a card, where it says **↻ Flip**, to turn it over.
+- **New cards.** Type `/card` at the start of a line or after a space for a blank card showing both sides. Type the front, Tab to the back, then Ctrl/Cmd+Enter to finish. A card left empty is removed.
+- **Releasing.** Ctrl/Cmd+M with the cursor inside a card turns it back into ordinary text, front then back.
+- **The border is the signal.** A new card is red. It cools through orange, yellow, and blue as you recall it, then goes grey once you know it. Confidence decays: each successful recall extends the half-life (about 14 hours, then 2, 5, 12, 30, and 75 days), so the page warms up again over time and asks again.
+- **Review happens in place.** **◈ n warm** in the top bar counts every warm card across every note, hottest first. Each card shows its front where it sits, and Space flips it. Answer Forgot, Hard, or Got it (keys 1, 2, 3); Esc leaves.
+- A card's confidence is stored on the card itself in the note's HTML, so it needs no extra database column and moves with the card. Flip state and colors are painted while the note is open and are never saved.
+- Passages marked before cards existed still paint and still come up for review. Selecting one and pressing Ctrl/Cmd+M turns it into a card and carries its review history over.
 
 ## Storage configuration
 
