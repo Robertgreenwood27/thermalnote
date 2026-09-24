@@ -120,12 +120,15 @@ function guardCards(event){
   if(range.collapsed&&deleting){
     const backward=/Backward$/.test(event.inputType),card=neighbourCard(range,backward);
     if(!card)return;
-    const block=topBlock(range.startContainer);
-    // Deleting the empty line between cards removes the line, not the card beside it.
-    if(block&&!isCard(block)&&block!==editor&&blank(block)&&block.nodeType===Node.ELEMENT_NODE){
-      event.preventDefault();const before=block.previousSibling;block.remove();
-      const caret=document.createRange();if(before&&!isCard(before)){caret.selectNodeContents(before);caret.collapse(false);}else if(before){caret.setStartAfter(before);caret.collapse(true);}else{caret.setStart(editor,0);}
-      restoreRange(caret);afterCardEdit();return;
+    // Blank space beside a card is lines, not the card: a newline, a <br>, or an empty line goes first, one per press.
+    const gap=backward?card.nextSibling:card.previousSibling;
+    if(gap&&!isCard(gap)&&(gap.nodeType===Node.TEXT_NODE?/^\s/.test(backward?gap.data:gap.data.slice(-1)):gap.nodeName==='BR'||blank(gap))){
+      event.preventDefault();
+      if(gap.nodeType===Node.TEXT_NODE){const at=backward?0:gap.data.length-1;gap.deleteData(at,1);if(!gap.data.length)gap.remove();}else gap.remove();
+      const caret=document.createRange(),next=backward?card.nextSibling:card.previousSibling;
+      if(next&&!isCard(next)&&next.nodeName!=='BR'){if(backward)caret.setStart(next,0);else{caret.selectNodeContents(next);caret.collapse(false);}if(next.nodeType===Node.TEXT_NODE)caret.setStart(next,backward?0:next.data.length);}
+      else if(backward)caret.setStartAfter(card);else caret.setStartBefore(card);
+      caret.collapse(true);restoreRange(caret);afterCardEdit();return;
     }
     touched=[card];
   }
