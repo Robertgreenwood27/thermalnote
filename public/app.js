@@ -2,7 +2,7 @@ import { HeatLayer } from './heat.js';
 import { $, api, toast, backup, escapeHTML, now } from './core.js';
 import { initWorkout, loadWorkout, flushDays } from './workout.js';
 import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review } from './marks.js';
-import { CARD_ATTRS, cardsIn, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
+import { CARD_ATTRS, cardsIn, heatName, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
 const title=$('note-title'), editor=$('note-body');
 const drafts=(action,value)=>backup('drafts',action,value);
 const heat=new HeatLayer([title,editor]);
@@ -170,8 +170,6 @@ function noteCards(note){const key=note.id+state.direction,cached=cardCache.get(
 function dueCards(note,moment){return noteCards(note).filter(card=>(state.direction==='forward'||card.hasBack)&&isDue(card,moment));}
 const backward=()=>state.direction==='backward';
 function findCard(id){return [...editor.querySelectorAll('.card')].find(card=>card.dataset.card===id)||null;}
-function setCardsEditable(editable){for(const card of editor.querySelectorAll('.card'))prepareCard(card,editable);}
-function clearStudied(){const element=state.study?.element;if(element){delete element.dataset.studying;element.removeAttribute('data-flipped');state.study.element=null;}}
 function dueQueue(){const moment=Date.now();return [...state.notes.values()].flatMap(note=>[...(backward()?[]:note.marks||[]).filter(mark=>isDue(mark,moment)).map(mark=>({noteId:note.id,markId:mark.id,score:retention(mark,moment)})),...dueCards(note,moment).map(card=>({noteId:note.id,cardId:card.id,score:retention(card,moment)}))]).sort((a,b)=>a.score-b.score);}
 function renderDirection(){const button=$('study-direction');button.textContent=backward()?'B→F':'F→B';button.setAttribute('aria-pressed',String(backward()));button.title=backward()?'Drilling back to front: the back is the prompt. Tap for front to back.':'Drilling front to back: the front is the prompt. Tap for back to front.';}
 function setDirection(next){
@@ -186,52 +184,98 @@ function renderStudy(){const warm=dueQueue().length;$('study-count').textContent
 function startStudy(){
   const queue=dueQueue();
   if(!queue.length)return toast(backward()?'Every card is cool back to front right now.':'Every card is cool right now.');
-  state.study={queue,index:0,revealed:false,element:null};
-  document.body.classList.add('studying');editor.contentEditable='false';title.contentEditable='false';setCardsEditable(false);$('study-bar').hidden=false;
+  // Random order, so position in a note is never the cue.
+  for(let i=queue.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[queue[i],queue[j]]=[queue[j],queue[i]];}
+  state.study={queue,index:0,revealed:false,done:0};
+  if(!drill.open)drill.showModal();
   showCard();
 }
 function endStudy(message){
   if(!state.study)return;
-  clearStudied();
-  state.study=null;document.body.classList.remove('studying');editor.contentEditable='true';title.contentEditable='true';setCardsEditable(true);$('study-bar').hidden=true;
-  marks.hidden=marks.focus=null;marks.paint();renderStudy();renderList();
+  state.study=null;if(drill.open)drill.close();
+  renderStudy();renderList();
   if(message)toast(message);
 }
-function centerOn(spot){const scroller=$('editor-scroll'),box=scroller.getBoundingClientRect();scroller.scrollTop+=spot.top-box.top-box.height/2+Math.min(spot.height,box.height)/2;}
-// A card shows its front where it sits; a passage marked before cards existed is blanked, so the sentence around it is the prompt.
+// The drill reads a card straight from its note's saved HTML, so it never has to open the note.
+function cardElement(note,cardId){
+  if(note.id===state.active){const live=findCard(cardId);if(live)return{element:live,live:true};}
+  const holder=document.createElement('template');holder.innerHTML=sanitize(note.content);
+  const element=[...holder.content.querySelectorAll('.card')].find(card=>card.dataset.card===cardId);
+  return element?{element,live:false,holder}:null;
+}
+function noteText(note){if(note.id===state.active)return editor.textContent;const holder=document.createElement('template');holder.innerHTML=sanitize(note.content);return holder.content.textContent;}
+// A passage marked before cards existed is shown in its own sentence, blanked, so the words around it are still the prompt.
+function passage(text,mark,reveal){
+  let from=Math.max(0,mark.start-160),to=Math.min(text.length,mark.end+160);
+  const lineStart=text.lastIndexOf('\n',mark.start-1),lineEnd=text.indexOf('\n',mark.end);
+  if(lineStart>=from)from=lineStart+1;if(lineEnd>=0&&lineEnd<=to)to=lineEnd;
+  const before=(from>0&&from!==lineStart+1?'…':'')+text.slice(from,mark.start),after=text.slice(mark.end,to)+(to<text.length&&to!==lineEnd?'…':'');
+  return `${escapeHTML(before)}<span class="${reveal?'drill-found':'drill-blank'}">${reveal?escapeHTML(mark.text):'&nbsp;'.repeat(Math.min(24,Math.max(6,mark.text.length)))}</span>${escapeHTML(after)}`;
+}
 function showCard(){
   const study=state.study;if(!study)return;
-  clearStudied();
-  const item=study.queue[study.index];
-  if(item.noteId!==state.active)selectNote(item.noteId);
-  const note=state.notes.get(item.noteId);
-  study.revealed=false;marks.hidden=marks.focus=null;
+  const item=study.queue[study.index],note=state.notes.get(item.noteId);
+  if(!note)return nextCard();
+  study.revealed=false;
+  const moment=Date.now();let prompt,answer,labels,heat;
   if(item.cardId){
-    const element=findCard(item.cardId);if(!element)return nextCard();
-    study.element=element;element.dataset.studying='';delete element.dataset.editing;element.toggleAttribute('data-flipped',backward());marks.paint();centerOn(element.getBoundingClientRect());
+    const found=cardElement(note,item.cardId);if(!found)return nextCard();
+    const front=found.element.querySelector(':scope>.card-front')?.innerHTML||'',back=found.element.querySelector(':scope>.card-back')?.innerHTML||'';
+    [prompt,answer]=backward()?[back,front]:[front,back];labels=backward()?['Back','Front']:['Front','Back'];
+    heat=heatName(readState(found.element,state.direction),moment);
   }else{
-    const mark=(note?.marks||[]).find(entry=>entry.id===item.markId);if(!mark)return nextCard();
-    marks.hidden=marks.focus=mark.id;marks.paint();
-    const range=marks.ranges(marks.nodes(),mark.start,mark.end)[0];if(range)centerOn(range.getBoundingClientRect());
+    const mark=(note.marks||[]).find(entry=>entry.id===item.markId);if(!mark)return nextCard();
+    const text=noteText(note);prompt=passage(text,mark,false);answer=passage(text,mark,true);labels=['Fill the blank','Answer'];heat=heatName(mark,moment);
   }
-  $('study-position').textContent=`${study.index+1} of ${study.queue.length}`;
-  $('study-note').textContent=note.title||'Untitled';
-  $('study-reveal').hidden=false;for(const button of document.querySelectorAll('.grade'))button.hidden=true;
+  $('drill-card').dataset.heat=heat;
+  $('drill-label').textContent=labels[0];$('drill-prompt').innerHTML=prompt||'<span class="muted">This side is empty.</span>';
+  $('drill-answer-label').textContent=labels[1];$('drill-answer-body').innerHTML=answer||'<span class="muted">This side is empty.</span>';
+  $('drill-answer').hidden=true;
+  $('drill-progress').textContent=`${study.index+1} of ${study.queue.length}`;
+  $('drill-note').textContent=note.title||'Untitled';
+  $('drill-reveal').hidden=false;for(const button of drill.querySelectorAll('.grade'))button.hidden=true;
+  $('drill-card').scrollTop=0;$('drill-card').focus();
 }
-function revealCard(){const study=state.study;if(!study||study.revealed)return;study.revealed=true;if(study.element)study.element.toggleAttribute('data-flipped',!backward());marks.hidden=null;marks.paint();$('study-reveal').hidden=true;for(const button of document.querySelectorAll('.grade'))button.hidden=false;}
+function revealCard(){const study=state.study;if(!study||study.revealed)return;study.revealed=true;$('drill-answer').hidden=false;$('drill-reveal').hidden=true;for(const button of drill.querySelectorAll('.grade'))button.hidden=false;$('drill-card').focus();}
+function gradeItem(item,result){
+  const note=state.notes.get(item.noteId);if(!note)return;
+  if(item.cardId){
+    const found=cardElement(note,item.cardId);if(!found)return;
+    writeState(found.element,review(readState(found.element,state.direction),result),state.direction);
+    if(found.live){paintCards(editor,Date.now(),state.direction);capture();}
+    else{note.content=serializeNote(found.holder.innerHTML);dirty(note);}
+  }else{note.marks=note.marks.map(mark=>mark.id===item.markId?review(mark,result):mark);if(note.id===state.active){marks.marks=note.marks;marks.paint();}dirty(note);}
+}
 function gradeCard(result){
   const study=state.study;if(!study)return;
   if(!study.revealed)return revealCard();
-  const item=study.queue[study.index],note=state.notes.get(item.noteId);
-  if(item.cardId&&study.element){writeState(study.element,review(readState(study.element,state.direction),result),state.direction);paintCards(editor,Date.now(),state.direction);capture();}
-  else if(note){note.marks=note.marks.map(mark=>mark.id===item.markId?review(mark,result):mark);if(note.id===state.active)marks.marks=note.marks;dirty(note);}
-  nextCard();
+  const item=study.queue[study.index];gradeItem(item,result);study.done++;
+  // Forgotten cards come back a few cards later, while the answer is still fresh enough to stick.
+  if(result==='forgot'){const at=Math.min(study.queue.length,study.index+3+Math.floor(Math.random()*3));study.queue.splice(at,0,item);}
+  renderStudy();nextCard();
 }
-function nextCard(){const study=state.study;if(++study.index>=study.queue.length)return endStudy('That was the whole warm list. The page is cooler than you left it.');showCard();}
+function nextCard(){const study=state.study;if(++study.index>=study.queue.length)return endStudy(`Drill done: ${study.done} ${study.done===1?'card':'cards'}. The page is cooler than you left it.`);showCard();}
+// Leaves the drill for the card's own note, with the card turned to the side being drilled and outlined for a moment.
+function openInNote(){
+  const item=state.study?.queue[state.study.index];if(!item)return;
+  endStudy();if(item.noteId!==state.active)selectNote(item.noteId);
+  const element=item.cardId?findCard(item.cardId):null;
+  if(element){element.toggleAttribute('data-flipped',backward());element.dataset.studying='';centerOn(element.getBoundingClientRect());setTimeout(()=>delete element.dataset.studying,2000);}
+}
+const drill=$('drill');
+drill.addEventListener('close',()=>{if(state.study)endStudy();});
+drill.addEventListener('keydown',event=>{
+  if(!state.study||event.ctrlKey||event.metaKey||event.altKey)return;
+  if(event.key===' '||event.key==='Enter'){if(event.target.matches?.('button'))return;event.preventDefault();revealCard();}
+  else if(['1','2','3'].includes(event.key)){event.preventDefault();gradeCard(['forgot','hard','got'][Number(event.key)-1]);}
+});
+drill.addEventListener('click',event=>{if(event.target===drill)endStudy();});
+$('drill-close').addEventListener('click',()=>endStudy());
+$('drill-reveal').addEventListener('click',revealCard);
+$('drill-open-note').addEventListener('click',openInNote);
+for(const button of drill.querySelectorAll('.grade'))button.addEventListener('click',()=>gradeCard(button.dataset.result));
+function centerOn(spot){const scroller=$('editor-scroll'),box=scroller.getBoundingClientRect();scroller.scrollTop+=spot.top-box.top-box.height/2+Math.min(spot.height,box.height)/2;}
 $('study-button').addEventListener('click',()=>state.study?endStudy():startStudy());
-$('study-exit').addEventListener('click',()=>endStudy());
-$('study-reveal').addEventListener('click',revealCard);
-for(const button of document.querySelectorAll('.grade'))button.addEventListener('click',()=>gradeCard(button.dataset.result));
 $('mark-passage').addEventListener('mousedown',event=>event.preventDefault());
 $('mark-passage').addEventListener('click',cardSelection);
 $('send-back').addEventListener('mousedown',event=>event.preventDefault());
@@ -276,8 +320,7 @@ for(const type of ['pointerup','pointercancel'])viewerImage.addEventListener(typ
 viewer.addEventListener('keydown',event=>{if(event.ctrlKey||event.metaKey)return;if(event.key==='+'||event.key==='=')setZoom(viewerScale*1.4);else if(event.key==='-')setZoom(viewerScale/1.4);else if(event.key==='0')setZoom(1);else if(event.key.toLowerCase()==='f')toggleViewerFullscreen();else return;event.preventDefault();});
 for(const type of ['resize','fullscreenchange'])addEventListener(type,()=>{if(!viewer.open)return;measureViewer();setZoom(viewerScale);});
 $('delete-note').addEventListener('click',()=>$('delete-dialog').showModal());$('delete-dialog').addEventListener('close',async()=>{if($('delete-dialog').returnValue!=='delete')return;const id=state.active;await save(id);const note=state.notes.get(id),q=queue(id);if(q.error){toast('Resolve the save issue before deleting this note.');return;}if(state.uploading){toast('Let the image finish uploading before deleting this note.');return;}try{await api(`/api/notes/${id}`,{method:'DELETE',body:JSON.stringify({version:note.version})});clearTimeout(q.timer);clearTimeout(q.maxTimer);state.notes.delete(id);state.queues.delete(id);await drafts('delete',id);state.active=null;if(state.notes.size)selectNote(state.notes.keys().next().value);else await newNote();toast('Note deleted.');}catch(error){toast(error.message);}});
-document.addEventListener('keydown',event=>{if(viewer.open)return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();flush();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='n'&&state.loaded){event.preventDefault();newNote();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='m'&&state.loaded){event.preventDefault();cardSelection();}
-  if(state.study&&!event.ctrlKey&&!event.metaKey&&!event.altKey){if(event.key===' '||event.key==='Enter'){event.preventDefault();revealCard();}else if(['1','2','3'].includes(event.key)){event.preventDefault();gradeCard(['forgot','hard','got'][Number(event.key)-1]);}}
+document.addEventListener('keydown',event=>{if(viewer.open||drill.open)return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();flush();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='n'&&state.loaded){event.preventDefault();newNote();}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='m'&&state.loaded){event.preventDefault();cardSelection();}
   if(event.key==='Escape'){endStudy();closeSidebar();}});
 window.addEventListener('beforeunload',event=>{if(state.uploading||[...state.queues.values()].some(q=>q.saved<q.generation)){event.preventDefault();event.returnValue='';}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});window.addEventListener('online',()=>{for(const[id,q]of state.queues)if(q.error&&![401,409].includes(q.error.status)){q.error=null;q.retryCount=0;save(id);}});

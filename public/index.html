@@ -68,15 +68,6 @@
           <div id="note-body" class="note-body" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Note body" spellcheck="true"></div>
         </article>
       </div>
-      <div id="study-bar" class="study-bar" hidden>
-        <div class="study-where"><strong id="study-position">1 of 1</strong><span id="study-note">Untitled</span></div>
-        <div class="study-actions">
-          <button id="study-reveal" class="study-reveal">Reveal <kbd>Space</kbd></button>
-          <button class="grade" data-result="forgot" hidden>Forgot <kbd>1</kbd></button>
-          <button class="grade" data-result="hard" hidden>Hard <kbd>2</kbd></button>
-          <button class="grade" data-result="got" hidden>Got it <kbd>3</kbd></button>
-          <button id="study-exit" class="icon-button" aria-label="Leave review" title="Leave review (Esc)">×</button>
-        </div>
       </div>
       <footer class="statusbar"><span id="word-count">0 words</span></footer>
     </main>
@@ -84,6 +75,21 @@
   </div>
   <dialog id="w-picker" class="picker"><div class="picker-head"><input id="w-search" placeholder="Search movements" aria-label="Search movements" autocomplete="off"><button id="w-picker-close" type="button" class="icon-button" aria-label="Close">×</button></div><div id="w-picker-list" class="picker-list"></div></dialog>
   <dialog id="link-dialog"><form id="link-form"><div class="dialog-heading"><h2>Add a link</h2><button type="button" class="icon-button" id="close-link" aria-label="Close">×</button></div><label for="link-url">Web address</label><input id="link-url" type="url" placeholder="https://" required><label for="link-text">Text <span class="muted">(optional)</span></label><input id="link-text"><p id="link-error" class="error" role="alert"></p><button type="submit" class="primary">Insert link</button></form></dialog>
+  <dialog id="drill" class="drill" aria-label="Drill">
+    <div class="drill-top"><strong id="drill-progress">1 of 1</strong><span id="drill-note" class="drill-note"></span><button id="drill-close" class="icon-button" aria-label="Close drill" title="Close (Esc)">×</button></div>
+    <div id="drill-card" class="drill-card" tabindex="-1">
+      <div id="drill-label" class="drill-label">Front</div>
+      <div id="drill-prompt" class="drill-side"></div>
+      <div id="drill-answer" class="drill-answer" hidden><div id="drill-answer-label" class="drill-label">Back</div><div id="drill-answer-body" class="drill-side"></div></div>
+    </div>
+    <div class="drill-actions">
+      <button id="drill-reveal" class="study-reveal" type="button">Reveal <kbd>Space</kbd></button>
+      <button class="grade" data-result="forgot" type="button" hidden>Forgot <kbd>1</kbd></button>
+      <button class="grade" data-result="hard" type="button" hidden>Hard <kbd>2</kbd></button>
+      <button class="grade" data-result="got" type="button" hidden>Got it <kbd>3</kbd></button>
+    </div>
+    <button id="drill-open-note" class="linkish drill-open" type="button">Open in note</button>
+  </dialog>
   <dialog id="delete-dialog"><form method="dialog"><h2>Delete this note?</h2><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="delete" class="danger">Delete note</button></div></form></dialog>
   <dialog id="image-viewer" class="image-viewer" aria-label="Image viewer">
     <div class="viewer-actions"><button id="viewer-zoom" class="viewer-button" aria-pressed="false" title="Zoom (+ / − / 0)">Zoom in</button><button id="viewer-full" class="viewer-button" title="Full screen (F)">Full screen</button><button id="viewer-close" class="icon-button" aria-label="Close image" title="Close (Esc)">×</button></div>

@@ -193,3 +193,23 @@
 .study-direction:hover{color:var(--text);background:#232326}
 .study-direction[aria-pressed=true]{color:var(--heat-blue);border-color:#0a84ff66}
 @media(max-width:760px){.study-direction{padding:5px 6px;font-size:.6875rem}}
+/* The drill: one card at a time, alone on the screen. */
+.drill{width:min(640px,calc(100vw - 24px));max-width:none;padding:18px 20px 16px;display:none;flex-direction:column;gap:16px}
+.drill[open]{display:flex}
+.drill-top{display:flex;align-items:center;gap:12px;font-size:.8125rem;color:var(--muted)}
+.drill-top strong{color:var(--accent);font-weight:600;white-space:nowrap}
+.drill-note{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drill-card{border:3px solid #3a3a40;border-radius:14px;background:#111114;padding:18px 20px 22px;min-height:180px;max-height:62dvh;overflow-y:auto;overscroll-behavior:contain}
+.drill-card[data-heat=red]{border-color:var(--heat-red)}.drill-card[data-heat=orange]{border-color:var(--heat-orange)}.drill-card[data-heat=gold]{border-color:var(--heat-yellow)}.drill-card[data-heat=blue]{border-color:var(--heat-blue)}
+.drill-label{font-size:.6875rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.drill-side{font-size:1.3rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.drill-side p,.drill-side div{margin:0 0 .5em}
+.drill-side img{display:block;max-width:100%;max-height:50dvh;border-radius:8px;margin:10px 0}
+.drill-answer{margin-top:18px;padding-top:16px;border-top:1px dashed #3a3a40}
+.drill-blank{display:inline-block;min-width:4em;border-bottom:2px solid var(--heat-red);background:#34343c;border-radius:3px}
+.drill-found{color:var(--heat-yellow);border-bottom:2px solid var(--heat-yellow)}
+.drill-actions{display:flex;flex-wrap:wrap;gap:9px;justify-content:center}
+.drill-actions .study-reveal,.drill-actions .grade{padding:13px 20px;font-size:1rem;justify-content:center;flex:1;min-width:92px;max-width:180px}
+.drill-open{align-self:center}
+@media(max-width:760px){.drill{padding:14px 12px 12px}.drill-side{font-size:1.15rem}.drill-actions kbd{display:none}}
+.drill-card:focus{outline:none}
