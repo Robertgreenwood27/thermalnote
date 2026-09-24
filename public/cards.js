@@ -1,24 +1,30 @@
 // A card is a block inside the note: a front, a back, and its own confidence carried on the element.
 import { TIER_NAMES, tier } from './marks.js';
-export const CARD_ATTRS=['data-card','data-recalls','data-lapses','data-reviewed','data-created'];
+export const CARD_ATTRS=['data-card','data-recalls','data-lapses','data-reviewed','data-created','data-rrecalls','data-rlapses','data-rreviewed'];
+// Each direction keeps its own evidence: knowing the answer from the prompt says little about the prompt from the answer.
+const PREFIX={forward:'data-',backward:'data-r'};
 // Display-only state. It is painted on while the note is open and never saved.
 const TRANSIENT=/ (?:data-(?:heat|flipped|studying|editing|armed)(?:="[^"]*")?|contenteditable="[^"]*"|style="[^"]*")/g;
 export const serializeNote=html=>html.replace(TRANSIENT,'');
 const freshId=()=>Math.random().toString(36).slice(2,10);
 const count=value=>Math.max(0,Math.floor(Number(value))||0);
-export function cardState(attrs,now=Date.now()){return{id:attrs['data-card']||'',recalls:count(attrs['data-recalls']),lapses:count(attrs['data-lapses']),reviewed:Number(attrs['data-reviewed'])||now,created:Number(attrs['data-created'])||now};}
+export function cardState(attrs,now=Date.now(),direction='forward'){const p=PREFIX[direction]||PREFIX.forward;return{id:attrs['data-card']||'',recalls:count(attrs[p+'recalls']),lapses:count(attrs[p+'lapses']),reviewed:Number(attrs[p+'reviewed'])||now,created:Number(attrs['data-created'])||now};}
 // Reads cards straight from saved HTML, so every note can be counted without being opened.
-export function cardsIn(html,now=Date.now()){
-  const found=[];
-  for(const [tag] of String(html).matchAll(/<div\b[^>]*\bdata-card="[^"]*"[^>]*>/g)){
-    const attrs={};for(const [,name,value] of tag.matchAll(/\b(data-[a-z]+)="([^"]*)"/g))attrs[name]=value;
-    const card=cardState(attrs,now);if(card.id)found.push(card);
+// A card whose back is empty has nothing to prompt with backwards, so it sits out that direction.
+export function cardsIn(html,now=Date.now(),direction='forward'){
+  const found=[],text=String(html);
+  for(const match of text.matchAll(/<div\b[^>]*\bdata-card="[^"]*"[^>]*>/g)){
+    const attrs={};for(const [,name,value] of match[0].matchAll(/\b(data-[a-z]+)="([^"]*)"/g))attrs[name]=value;
+    const rest=text.slice(match.index+match[0].length),back=rest.indexOf('class="card-back"'),next=rest.search(/<div\b[^>]*\bdata-card="/);
+    const hasBack=back>=0&&(next<0||back<next)&&!/^[^>]*>(?:\s|<br\s*\/?>)*<\/div>/.test(rest.slice(back));
+    const card={...cardState(attrs,now,direction),hasBack};if(card.id)found.push(card);
   }
   return found;
 }
 export function heatName(card,now=Date.now()){const level=tier(card,now);return level<TIER_NAMES.length?TIER_NAMES[level]:'cool';}
-export function writeState(element,card){element.dataset.card=card.id;element.dataset.recalls=String(card.recalls);element.dataset.lapses=String(card.lapses);element.dataset.reviewed=String(Math.round(card.reviewed));element.dataset.created=String(Math.round(card.created));}
-export const readState=element=>cardState(Object.fromEntries(CARD_ATTRS.map(name=>[name,element.getAttribute(name)])));
+export function writeState(element,card,direction='forward'){const p=PREFIX[direction]||PREFIX.forward;element.setAttribute('data-card',card.id);element.setAttribute(p+'recalls',String(card.recalls));element.setAttribute(p+'lapses',String(card.lapses));element.setAttribute(p+'reviewed',String(Math.round(card.reviewed)));element.setAttribute('data-created',String(Math.round(card.created)));}
+export const readState=(element,direction='forward')=>cardState(Object.fromEntries(CARD_ATTRS.map(name=>[name,element.getAttribute(name)])),Date.now(),direction);
+export const hasBack=card=>{const back=card.querySelector(':scope>.card-back');return !!back&&(/\S/.test(back.textContent)||!!back.querySelector('img'));};
 export function makeCard(front,back,seed={},at=Date.now()){
   const card=document.createElement('div');card.className='card';
   writeState(card,{id:freshId(),recalls:seed.recalls||0,lapses:seed.lapses||0,reviewed:seed.reviewed||at,created:at});
@@ -37,7 +43,7 @@ export function normalizeCards(root,editable=true){
     prepareCard(card,editable);
   }
 }
-export function paintCards(root,now=Date.now()){for(const card of root.querySelectorAll('.card'))card.dataset.heat=heatName(readState(card),now);}
+export function paintCards(root,now=Date.now(),direction='forward'){for(const card of root.querySelectorAll('.card'))card.dataset.heat=direction==='backward'&&!hasBack(card)?'cool':heatName(readState(card,direction),now);}
 const hasContent=node=>node.nodeType===Node.TEXT_NODE?/\S/.test(node.data):node.nodeName==='IMG'||/\S/.test(node.textContent)||!!node.querySelector?.('img,.card');
 function dropEmpty(element){if(element?.isConnected&&element.nodeType===Node.ELEMENT_NODE&&!element.classList.contains('card')&&!hasContent(element))element.remove();}
 // Puts a card at a caret position, splitting the block around it so the card stands on its own line.

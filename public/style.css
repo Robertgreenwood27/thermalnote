@@ -188,3 +188,8 @@
 .note-body .card[data-armed]::after{content:'Backspace again to delete';color:var(--heat-red)}
 .copy-all{margin-left:auto;font-size:.8125rem;font-weight:600;color:var(--accent);padding:7px 12px;border-radius:7px;background:#2a1f00}
 .copy-all:hover{background:#3a2a00}
+.study-group{display:inline-flex;align-items:center;gap:4px}
+.study-direction{font-size:.75rem;font-weight:600;color:var(--muted);padding:6px 8px;border-radius:6px;border:1px solid var(--line);white-space:nowrap}
+.study-direction:hover{color:var(--text);background:#232326}
+.study-direction[aria-pressed=true]{color:var(--heat-blue);border-color:#0a84ff66}
+@media(max-width:760px){.study-direction{padding:5px 6px;font-size:.6875rem}}
