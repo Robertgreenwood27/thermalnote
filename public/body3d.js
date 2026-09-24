@@ -10,8 +10,8 @@ import { GLTFLoader } from './vendor/GLTFLoader.js';
 
 const MODEL='/body-muscles.glb';
 // Resting muscle, fully worked muscle, and the tissue this app does not track.
-const COLD=new THREE.Color('#7a5148');
-const HOT=new THREE.Color('#ff1f0b');
+const COLD=new THREE.Color('#5c5c64');
+const HOT=new THREE.Color('#ff3b30');
 const CONTEXT=new THREE.Color('#37322f');
 // A tap that travels this far was a drag of the body, not a choice of muscle.
 const TAP_SLOP=9;
