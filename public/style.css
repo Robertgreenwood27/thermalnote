@@ -184,3 +184,5 @@
 .note-body .card[data-heat=blue]{border-color:var(--heat-blue)}
 .note-body .card[data-studying]{box-shadow:0 0 0 5px #ffffff1f}
 .studying .note-body .card{cursor:default}
+.note-body .card[data-armed]{border-style:dashed;border-color:var(--heat-red);background:#2a1110}
+.note-body .card[data-armed]::after{content:'Backspace again to delete';color:var(--heat-red)}

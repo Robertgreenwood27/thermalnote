@@ -96,12 +96,67 @@ function slashCard(event){
   placeCard(editor,range,card);afterCardEdit();caretIn(card.querySelector('.card-front'));
 }
 editor.addEventListener('input',slashCard);
+// Cards only go when you mean it. The first Backspace or Delete that would take a card selects it and turns it red; the second removes it.
+// A blank line between cards is just a blank line, and deleting it leaves both cards alone.
+function topBlock(node){while(node&&node.parentNode!==editor)node=node.parentNode;return node;}
+const isCard=node=>node?.nodeType===Node.ELEMENT_NODE&&node.classList.contains('card');
+const blank=node=>!node.textContent.trim()&&!node.querySelector?.('img,.card');
+function atEdge(range,block,backward){const probe=document.createRange();probe.selectNodeContents(block);if(backward)probe.setEnd(range.startContainer,range.startOffset);else probe.setStart(range.endContainer,range.endOffset);return !probe.toString().length&&!probe.cloneContents().querySelector('img');}
+// The card a collapsed caret would delete into, if any.
+function neighbourCard(range,backward){
+  if(range.startContainer===editor){const node=editor.childNodes[range.startOffset-(backward?1:0)];return isCard(node)?node:null;}
+  const block=topBlock(range.startContainer);if(!block||isCard(block)||!atEdge(range,block,backward))return null;
+  const next=backward?block.previousSibling:block.nextSibling;return isCard(next)?next:null;
+}
+function disarm(){for(const card of editor.querySelectorAll('.card[data-armed]'))delete card.dataset.armed;}
+function arm(cards){disarm();for(const card of cards)card.dataset.armed='';toast(cards.length===1?'Press Backspace again to delete this card.':`Press Backspace again to delete ${cards.length} cards.`);}
+function guardCards(event){
+  if(state.study||!/^(insert|delete)/.test(event.inputType))return;
+  const selection=getSelection();if(!selection.rangeCount)return;
+  const range=selection.getRangeAt(0),deleting=event.inputType.startsWith('delete');
+  // Editing inside one side of one card is ordinary typing.
+  const side=sideOf(range.startContainer,editor);if(side&&side===sideOf(range.endContainer,editor))return;
+  let touched=[...editor.querySelectorAll('.card')].filter(card=>range.intersectsNode(card));
+  if(range.collapsed&&deleting){
+    const backward=/Backward$/.test(event.inputType),card=neighbourCard(range,backward);
+    if(!card)return;
+    const block=topBlock(range.startContainer);
+    // Deleting the empty line between cards removes the line, not the card beside it.
+    if(block&&!isCard(block)&&block!==editor&&blank(block)&&block.nodeType===Node.ELEMENT_NODE){
+      event.preventDefault();const before=block.previousSibling;block.remove();
+      const caret=document.createRange();if(before&&!isCard(before)){caret.selectNodeContents(before);caret.collapse(false);}else if(before){caret.setStartAfter(before);caret.collapse(true);}else{caret.setStart(editor,0);}
+      restoreRange(caret);afterCardEdit();return;
+    }
+    touched=[card];
+  }
+  if(!touched.length)return;
+  if(deleting&&touched.every(card=>card.hasAttribute('data-armed'))){
+    // The browser would empty an atomic card rather than remove it, so the removal happens here.
+    event.preventDefault();
+    const doomed=document.createRange();doomed.setStart(range.startContainer,range.startOffset);doomed.setEnd(range.endContainer,range.endOffset);
+    for(const card of touched){if(card.contains(doomed.startContainer))doomed.setStartBefore(card);if(card.contains(doomed.endContainer))doomed.setEndAfter(card);}
+    for(const card of touched)if(card.isConnected)card.remove();
+    doomed.deleteContents();doomed.collapse(true);
+    if(!editor.childNodes.length){const line=document.createElement('div');line.append(document.createElement('br'));editor.append(line);doomed.setStart(line,0);doomed.collapse(true);}
+    restoreRange(doomed);afterCardEdit();
+    return toast(touched.length===1?'Card deleted.':`${touched.length} cards deleted.`);
+  }
+  event.preventDefault();
+  if(!deleting)return toast('Typing over a card would erase it. Select around the card, or delete it first.');
+  arm(touched);
+  // Hold the card as the selection, so the second press lands on exactly it.
+  if(range.collapsed){const hold=document.createRange();hold.selectNode(touched[0]);restoreRange(hold);}
+}
+editor.addEventListener('beforeinput',guardCards);
+editor.addEventListener('keydown',event=>{if(!['Backspace','Delete'].includes(event.key)&&!['Control','Meta','Shift','Alt'].includes(event.key))disarm();});
+document.addEventListener('selectionchange',()=>{const armed=editor.querySelectorAll('.card[data-armed]');if(!armed.length)return;const selection=getSelection();const range=selection.rangeCount?selection.getRangeAt(0):null;if(!range||![...armed].every(card=>range.intersectsNode(card)))disarm();});
 editor.addEventListener('keydown',event=>{
   if(state.study)return;
   const mod=event.ctrlKey||event.metaKey,selection=getSelection(),side=selection.rangeCount?sideOf(selection.anchorNode,editor):null;
   if(!side)return;
   const card=side.parentElement;
   if(mod&&event.key.toLowerCase()==='b'&&sendToBack())return event.preventDefault();
+  if(mod&&event.key.toLowerCase()==='a'){event.preventDefault();const all=document.createRange();all.selectNodeContents(side);selection.removeAllRanges();selection.addRange(all);return;}
   if(mod&&event.key==='Enter'){event.preventDefault();finishCard(card);return;}
   if(event.key==='Tab'&&card.hasAttribute('data-editing')){event.preventDefault();caretIn(card.querySelector(side.classList.contains('card-front')?'.card-back':'.card-front'));}
 });

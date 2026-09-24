@@ -2,7 +2,7 @@
 import { TIER_NAMES, tier } from './marks.js';
 export const CARD_ATTRS=['data-card','data-recalls','data-lapses','data-reviewed','data-created'];
 // Display-only state. It is painted on while the note is open and never saved.
-const TRANSIENT=/ (?:data-(?:heat|flipped|studying|editing)(?:="[^"]*")?|contenteditable="[^"]*"|style="[^"]*")/g;
+const TRANSIENT=/ (?:data-(?:heat|flipped|studying|editing|armed)(?:="[^"]*")?|contenteditable="[^"]*"|style="[^"]*")/g;
 export const serializeNote=html=>html.replace(TRANSIENT,'');
 const freshId=()=>Math.random().toString(36).slice(2,10);
 const count=value=>Math.max(0,Math.floor(Number(value))||0);
