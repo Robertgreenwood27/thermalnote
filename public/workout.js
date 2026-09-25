@@ -25,8 +25,15 @@ const shiftDay=(key,days)=>{const date=asDate(key);date.setDate(date.getDate()+d
 // ---- the shape of a day -------------------------------------------------
 const blank=kind=>kind==='time'?{sec:''}:kind==='body'?{r:'',w:'',rir:''}:{w:'',r:'',rir:''};
 function docFor(date){if(!state.days.has(date))state.days.set(date,{date,data:{movements:[],meals:[],note:''},version:0,updated_at:now()});const doc=state.days.get(date);doc.data.movements||=[];doc.data.meals||=[];return doc;}
+// Everything outside lifting is optional and allowed to stay blank: a ride of 0, a forgotten weigh-in, a skipped check-in.
+const MOODS=[['morning','Morning','First thing'],['noon','Midday','Around noon'],['night','Bedtime','Before bed']];
+const text=value=>typeof value==='string'?value.trim():'';
+const rideOf=doc=>({mi:num(doc.data.ride?.mi),min:num(doc.data.ride?.min)});
+const hasRide=doc=>{const ride=rideOf(doc);return ride.mi>0||ride.min>0;};
+const hasMood=doc=>MOODS.some(([key])=>text(doc.data.mood?.[key]));
+const mealLogged=meal=>text(meal.name)||num(meal.protein)>0||num(meal.cal)>0;
 const logged=entry=>entry.sets.filter(set=>entry.kind==='time'?num(set.sec)>0:num(set.r)>0);
-const hasContent=doc=>doc.data.movements.some(entry=>logged(entry).length)||doc.data.meals.some(meal=>meal.name?.trim()||num(meal.protein)>0);
+const hasContent=doc=>doc.data.movements.some(entry=>logged(entry).length)||doc.data.meals.some(mealLogged)||num(doc.data.weight)>0||hasRide(doc)||hasMood(doc);
 
 // ---- metrics ------------------------------------------------------------
 const setVolume=(set,kind)=>kind==='time'?num(set.sec):kind==='body'?num(set.r):num(set.w)*num(set.r);
@@ -35,6 +42,10 @@ export const entryVolume=entry=>logged(entry).reduce((sum,set)=>sum+setVolume(se
 const e1rm=set=>num(set.w)>0&&num(set.r)>0?num(set.w)*(1+num(set.r)/30):0;
 const dayVolume=doc=>doc.data.movements.filter(entry=>entry.kind==='weight').reduce((sum,entry)=>sum+entryVolume(entry),0);
 const dayProtein=doc=>doc.data.meals.reduce((sum,meal)=>sum+num(meal.protein),0);
+const dayCalories=doc=>doc.data.meals.reduce((sum,meal)=>sum+num(meal.cal),0);
+const speed=ride=>ride.mi>0&&ride.min>0?ride.mi/(ride.min/60):0;
+function rideText(ride){const parts=[];if(ride.mi>0)parts.push(`${fmt(ride.mi)} mi`);if(ride.min>0)parts.push(`${fmt(ride.min)} min`);const mph=speed(ride);return parts.join(' in ')+(mph?` · ${fmt(mph)} mph`:'');}
+function previousWeight(beforeDate){const dates=[...state.days.keys()].filter(date=>date<beforeDate).sort().reverse();for(const date of dates){const weight=num(state.days.get(date).data.weight);if(weight>0)return{date,weight};}return null;}
 export function volumeText(entry){const total=entryVolume(entry);if(!total)return '';return entry.kind==='time'?`${Math.floor(total/60)}:${String(Math.round(total%60)).padStart(2,'0')}`:entry.kind==='body'?`${group(total)} reps`:`${group(total)} lb`;}
 function setText(set,kind){if(kind==='time')return `${fmt(num(set.sec))}s`;if(kind==='body')return num(set.w)>0?`+${fmt(num(set.w))}×${fmt(num(set.r))}`:`${fmt(num(set.r))}`;return `${fmt(num(set.w))}×${fmt(num(set.r))}`;}
 // Consecutive identical sets collapse: "30×10 ×3" rather than the same thing three times.
@@ -96,12 +107,13 @@ function renderMeals(doc){
   for(const[index,meal]of doc.data.meals.entries()){
     const row=el('div','meal-row');
     const name=el('input','meal-name');name.value=meal.name??'';name.placeholder='What you ate';name.dataset.meal=index;name.dataset.key='name';name.setAttribute('aria-label','Meal');
-    const protein=el('input','meal-p');protein.value=meal.protein??'';protein.inputMode='numeric';protein.placeholder='0';protein.dataset.meal=index;protein.dataset.key='protein';protein.setAttribute('aria-label','Protein in grams');
+    const protein=el('input','meal-p');protein.value=meal.protein??'';protein.inputMode='numeric';protein.placeholder='g';protein.dataset.meal=index;protein.dataset.key='protein';protein.setAttribute('aria-label','Protein in grams');
+    const cal=el('input','meal-p meal-cal');cal.value=meal.cal??'';cal.inputMode='numeric';cal.placeholder='cal';cal.dataset.meal=index;cal.dataset.key='cal';cal.setAttribute('aria-label','Calories');
     const drop=el('button','set-drop','×');drop.type='button';drop.dataset.act='drop-meal';drop.dataset.meal=index;drop.setAttribute('aria-label','Remove meal');
-    row.append(name,protein,el('span','meal-g','g'),drop);list.append(row);
+    row.append(name,protein,cal,drop);list.append(row);
   }
   const chips=el('div','chips');
-  for(const meal of recentMeals(doc)){const chip=el('button','chip',`${meal.name} · ${fmt(num(meal.protein))}g`);chip.type='button';chip.dataset.act='repeat-meal';chip.dataset.name=meal.name;chip.dataset.protein=meal.protein;chips.append(chip);}
+  for(const meal of recentMeals(doc)){const chip=el('button','chip',[meal.name,num(meal.protein)?`${fmt(num(meal.protein))}g`:'',num(meal.cal)?`${group(num(meal.cal))} cal`:''].filter(Boolean).join(' · '));chip.type='button';chip.dataset.act='repeat-meal';chip.dataset.name=meal.name;chip.dataset.protein=meal.protein??'';chip.dataset.cal=meal.cal??'';chips.append(chip);}
   if(chips.childElementCount)list.append(chips);
 }
 function recentMeals(doc){
@@ -113,8 +125,13 @@ function recentMeals(doc){
 function renderTotals(doc){
   const volume=dayVolume(doc),protein=dayProtein(doc),count=doc.data.movements.filter(entry=>logged(entry).length).length;
   $('w-volume').textContent=count?`${count} movement${count===1?'':'s'} · ${group(volume)} lb`:'Nothing logged yet';
-  $('w-protein').textContent=`${group(protein)} g protein`;
+  const calories=dayCalories(doc);$('w-protein').textContent=`${group(protein)} g protein`+(calories?` · ${group(calories)} cal`:'');
+  const ride=rideOf(doc),mph=speed(ride);$('w-ride-speed').textContent=mph?`${fmt(mph)} mph`:'';
+  const weight=num(doc.data.weight),last=previousWeight(doc.date),note=$('w-weight-prev');
+  if(last){const delta=weight>0?weight-last.weight:0;note.textContent=`Last ${shortDate(last.date)}: ${fmt(last.weight)} lb`+(delta?` (${delta>0?'+':''}${fmt(delta)})`:'');}else note.textContent='';
 }
+// The fields that are a single value per day, not a list: weight, the ride, and the three check-ins.
+function renderDaily(doc){for(const input of document.querySelectorAll('#w-day [data-path]')){const [head,key]=input.dataset.path.split('.');const value=key?doc.data[head]?.[key]:doc.data[head];input.value=value??'';}}
 export function renderDay(){
   const doc=docFor(state.viewing);
   $('w-date').textContent=state.viewing===dayKey()?'Today':longDate(state.viewing);
@@ -123,8 +140,9 @@ export function renderDay(){
   const list=$('w-movements');list.replaceChildren();
   for(const entry of doc.data.movements)list.append(movementCard(entry,state.viewing));
   if(!doc.data.movements.length)list.append(el('p','empty','No movements yet. Add the first one below.'));
-  renderMeals(doc);renderTotals(doc);renderStatus();
+  renderMeals(doc);renderDaily(doc);renderTotals(doc);renderStatus();
 }
+const meals=doc=>doc.data.meals.some(mealLogged);
 function renderHistory(){
   const list=$('w-history-list');list.replaceChildren();
   const days=[...state.days.values()].filter(hasContent).sort((a,b)=>b.date.localeCompare(a.date));
@@ -132,9 +150,9 @@ function renderHistory(){
     const item=el('button','day-card');item.type='button';item.dataset.act='open-day';item.dataset.date=doc.date;
     item.append(el('strong',null,shortDate(doc.date)));
     const names=doc.data.movements.filter(entry=>logged(entry).length).map(entry=>entry.name);
-    item.append(el('p',null,names.join(', ')||'Food only'));
-    const volume=dayVolume(doc),protein=dayProtein(doc);
-    item.append(el('small',null,[volume?`${group(volume)} lb`:'',protein?`${group(protein)} g protein`:''].filter(Boolean).join(' · ')));
+    item.append(el('p',null,names.join(', ')||[hasRide(doc)&&'Ride',meals(doc)&&'Food',num(doc.data.weight)>0&&'Weigh-in',hasMood(doc)&&'Mood'].filter(Boolean).join(', ')));
+    const volume=dayVolume(doc),protein=dayProtein(doc),calories=dayCalories(doc),ride=rideOf(doc),weight=num(doc.data.weight);
+    item.append(el('small',null,[weight?`${fmt(weight)} lb body`:'',volume?`${group(volume)} lb lifted`:'',ride.mi?`${fmt(ride.mi)} mi ride`:ride.min?`${fmt(ride.min)} min ride`:'',protein?`${group(protein)} g protein`:'',calories?`${group(calories)} cal`:''].filter(Boolean).join(' · ')));
     list.append(item);
   }
   if(!days.length)list.append(el('p','empty','Nothing logged yet.'));
@@ -192,6 +210,7 @@ function addMovement(movement){
 // ---- clipboard ----------------------------------------------------------
 export function dayText(doc,{previous:withPrevious=true}={}){
   const lines=[longDate(doc.date)+`, ${asDate(doc.date).getFullYear()}`];
+  if(num(doc.data.weight)>0)lines.push(`Morning weight: ${fmt(num(doc.data.weight))} lb`);
   const done=doc.data.movements.filter(entry=>logged(entry).length);
   if(done.length){
     lines.push('','WORKOUT');
@@ -202,12 +221,15 @@ export function dayText(doc,{previous:withPrevious=true}={}){
     }
     const volume=dayVolume(doc);if(volume)lines.push(`Day volume: ${group(volume)} lb`);
   }
-  const meals=doc.data.meals.filter(meal=>meal.name?.trim()||num(meal.protein)>0);
+  if(hasRide(doc))lines.push('','RIDE',rideText(rideOf(doc)));
+  const meals=doc.data.meals.filter(mealLogged);
   if(meals.length){
     lines.push('','FOOD');
-    for(const meal of meals)lines.push(`${meal.name||'Meal'} — ${fmt(num(meal.protein))} g protein`);
+    for(const meal of meals){const facts=[num(meal.protein)?`${fmt(num(meal.protein))} g protein`:'',num(meal.cal)?`${group(num(meal.cal))} cal`:''].filter(Boolean).join(' · ');lines.push(`${meal.name||'Meal'}${facts?` — ${facts}`:''}`);}
     lines.push(`Total protein: ${group(dayProtein(doc))} g`);
+    if(dayCalories(doc))lines.push(`Total calories: ${group(dayCalories(doc))}`);
   }
+  if(hasMood(doc)){lines.push('','MOOD');for(const[key,label]of MOODS){const entry=text(doc.data.mood?.[key]);if(entry)lines.push(`${label}: ${entry}`);}}
   if(doc.data.note?.trim())lines.push('','NOTES',doc.data.note.trim());
   return lines.join('\n');
 }
@@ -261,11 +283,17 @@ export function initWorkout({onUnauthorized}={}){
   $('w-meals').addEventListener('click',event=>{
     const action=event.target.dataset.act,doc=docFor(state.viewing);
     if(action==='drop-meal')doc.data.meals.splice(Number(event.target.dataset.meal),1);
-    else if(action==='repeat-meal')doc.data.meals.push({name:event.target.dataset.name,protein:event.target.dataset.protein});
+    else if(action==='repeat-meal')doc.data.meals.push({name:event.target.dataset.name,protein:event.target.dataset.protein,cal:event.target.dataset.cal});
     else return;
     markDirty(state.viewing);renderDay();
   });
-  $('w-add-meal').addEventListener('click',()=>{const doc=docFor(state.viewing);doc.data.meals.push({name:'',protein:''});markDirty(state.viewing);renderDay();$('w-meals').querySelector('.meal-row:last-of-type .meal-name')?.focus();});
+  $('w-day').addEventListener('input',event=>{
+    const path=event.target.dataset?.path;if(!path)return;
+    const doc=docFor(state.viewing),[head,key]=path.split('.'),value=event.target.tagName==='TEXTAREA'?event.target.value:event.target.value.trim();
+    if(key){if(!doc.data[head]||typeof doc.data[head]!=='object')doc.data[head]={};doc.data[head][key]=value;}else doc.data[head]=value;
+    markDirty(state.viewing);renderTotals(doc);
+  });
+  $('w-add-meal').addEventListener('click',()=>{const doc=docFor(state.viewing);doc.data.meals.push({name:'',protein:'',cal:''});markDirty(state.viewing);renderDay();$('w-meals').querySelector('.meal-row:last-of-type .meal-name')?.focus();});
   $('w-prev').addEventListener('click',()=>{state.viewing=shiftDay(state.viewing,-1);renderDay();});
   $('w-next').addEventListener('click',()=>{if(state.viewing<dayKey()){state.viewing=shiftDay(state.viewing,1);renderDay();}});
   $('w-date').addEventListener('click',()=>{state.viewing=dayKey();renderDay();});

@@ -52,9 +52,17 @@ Movements added by hand in the picker are not mapped to muscles yet and stay dar
 
 The figure downloads only the first time the Body pane is opened, and nothing is drawn while it is out of sight.
 
+### Weight, rides, and mood
+
+Everything here is optional and can stay blank. A day with a forgotten weigh-in or no ride is still a normal day.
+
+- **Morning weight** sits at the top of the day, with the last weigh-in and the change since it beside it.
+- **Ride** takes distance in miles and time in minutes, and shows average speed once both are in.
+- **Mood** has three short journal boxes: morning (first thing), midday (around noon), and bedtime.
+
 ### Food
 
-Meals are a description and grams of protein, with a running total. Meals eaten recently appear as chips — one tap to log the same thing again.
+Meals are a description, grams of protein, and calories, with running totals of both. Meals eaten recently appear as chips — one tap to log the same thing again.
 
 ### Copy day
 

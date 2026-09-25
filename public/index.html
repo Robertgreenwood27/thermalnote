@@ -26,13 +26,24 @@
     <div id="w-day" class="w-pane">
       <div class="w-datebar"><button id="w-prev" class="icon-button" aria-label="Previous day">‹</button><span class="w-dateblock"><button id="w-date">Today</button><small id="w-subdate"></small></span><button id="w-next" class="icon-button" aria-label="Next day">›</button></div>
       <div class="w-scroll">
+        <section class="daily weigh"><label class="daily-label" for="w-weight">Morning weight</label><div class="daily-row"><input id="w-weight" class="daily-in" data-path="weight" inputmode="decimal" placeholder="—" autocomplete="off"><span class="daily-unit">lb</span><small id="w-weight-prev" class="daily-note"></small></div></section>
         <p id="w-volume" class="w-summary"></p>
         <div id="w-movements"></div>
         <button id="w-add" class="w-add" type="button">+ Add movement</button>
+        <section class="daily ride">
+          <div class="food-head"><h2>Ride</h2><span id="w-ride-speed"></span></div>
+          <div class="daily-row"><input id="w-ride-mi" class="daily-in" data-path="ride.mi" inputmode="decimal" placeholder="0" aria-label="Ride distance in miles" autocomplete="off"><span class="daily-unit">mi</span><input id="w-ride-min" class="daily-in" data-path="ride.min" inputmode="numeric" placeholder="0" aria-label="Ride time in minutes" autocomplete="off"><span class="daily-unit">min</span></div>
+        </section>
         <section class="food">
           <div class="food-head"><h2>Food</h2><span id="w-protein"></span></div>
           <div id="w-meals"></div>
           <button id="w-add-meal" class="w-add quiet" type="button">+ Add meal</button>
+        </section>
+        <section class="daily mood">
+          <div class="food-head"><h2>Mood</h2></div>
+          <label class="daily-label" for="w-mood-morning">Morning <small>first thing</small></label><textarea id="w-mood-morning" class="mood-in" data-path="mood.morning" rows="2" placeholder="How are you waking up?"></textarea>
+          <label class="daily-label" for="w-mood-noon">Midday <small>around noon</small></label><textarea id="w-mood-noon" class="mood-in" data-path="mood.noon" rows="2" placeholder="How is the day going?"></textarea>
+          <label class="daily-label" for="w-mood-night">Bedtime <small>before bed</small></label><textarea id="w-mood-night" class="mood-in" data-path="mood.night" rows="2" placeholder="How did today feel?"></textarea>
         </section>
       </div>
       <footer class="w-bar"><button id="w-copy" class="primary" type="button">Copy day</button></footer>
