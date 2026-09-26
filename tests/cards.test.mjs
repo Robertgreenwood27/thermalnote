@@ -38,3 +38,8 @@ test('each direction keeps its own evidence',()=>{
  assert.equal(frontOnly.recalls,0,'a card never drilled backwards starts warm that way');
  assert.equal(frontOnly.hasBack,false);
 });
+
+test('the copy button drawn on a card is never saved',()=>{
+ const live='<div class="card" data-card="a" contenteditable="false"><div class="card-front" contenteditable="true">OSPF AD</div><div class="card-back" contenteditable="true">110</div><button type="button" class="card-copy" title="Copy front and back" aria-label="Copy this card"></button></div>';
+ assert.equal(serializeNote(live),'<div class="card" data-card="a"><div class="card-front">OSPF AD</div><div class="card-back">110</div></div>');
+});

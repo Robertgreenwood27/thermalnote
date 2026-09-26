@@ -5,7 +5,9 @@ export const CARD_ATTRS=['data-card','data-recalls','data-lapses','data-reviewed
 const PREFIX={forward:'data-',backward:'data-r'};
 // Display-only state. It is painted on while the note is open and never saved.
 const TRANSIENT=/ (?:data-(?:heat|flipped|studying|editing|armed)(?:="[^"]*")?|contenteditable="[^"]*"|style="[^"]*")/g;
-export const serializeNote=html=>html.replace(TRANSIENT,'');
+// The copy button is drawn onto every card while the note is open. It has no text, so it never shifts a mark's offsets.
+const COPY_BUTTON=/<button\b[^>]*\bclass="card-copy"[^>]*>[^<]*<\/button>/g;
+export const serializeNote=html=>html.replace(COPY_BUTTON,'').replace(TRANSIENT,'');
 const freshId=()=>Math.random().toString(36).slice(2,10);
 const count=value=>Math.max(0,Math.floor(Number(value))||0);
 export function cardState(attrs,now=Date.now(),direction='forward'){const p=PREFIX[direction]||PREFIX.forward;return{id:attrs['data-card']||'',recalls:count(attrs[p+'recalls']),lapses:count(attrs[p+'lapses']),reviewed:Number(attrs[p+'reviewed'])||now,created:Number(attrs['data-created'])||now};}
@@ -32,7 +34,25 @@ export function makeCard(front,back,seed={},at=Date.now()){
   card.append(...sides);prepareCard(card,true);return card;
 }
 // Cards are atomic in the page and editable inside, so a stray Backspace cannot pour a paragraph into a hidden back.
-export function prepareCard(card,editable){card.contentEditable='false';for(const side of card.querySelectorAll(':scope>.card-front,:scope>.card-back'))side.contentEditable=String(editable);}
+export function prepareCard(card,editable){
+  card.contentEditable='false';for(const side of card.querySelectorAll(':scope>.card-front,:scope>.card-back'))side.contentEditable=String(editable);
+  if(!card.querySelector(':scope>.card-copy')){const button=document.createElement('button');button.type='button';button.className='card-copy';button.title='Copy front and back';button.setAttribute('aria-label','Copy this card');card.append(button);}
+}
+// A side as plain text, keeping its line breaks, whether or not it is showing.
+export function sideText(side){
+  if(!side)return '';
+  const copy=side.cloneNode(true);
+  for(const image of copy.querySelectorAll('img'))image.replaceWith('[image]');
+  for(const br of copy.querySelectorAll('br'))br.replaceWith('\n');
+  for(const block of copy.querySelectorAll('div,p,li,h1,h2,h3,blockquote,pre'))block.append('\n');
+  return copy.textContent.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+// Front and back laid out for pasting into a chat.
+export function cardText(card,title=''){
+  const front=sideText(card.querySelector(':scope>.card-front')),back=sideText(card.querySelector(':scope>.card-back'));
+  const block=(label,text)=>text.includes('\n')?`${label}:\n${text}`:`${label}: ${text||'(empty)'}`;
+  return [title?`From my notes on "${title}":`:'',block('Front',front),block('Back',back)].filter(Boolean).join('\n\n');
+}
 // Repairs whatever a paste or an old save left behind: two sides each, one id each.
 export function normalizeCards(root,editable=true){
   const seen=new Set();

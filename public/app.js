@@ -2,7 +2,7 @@ import { HeatLayer } from './heat.js';
 import { $, api, toast, backup, escapeHTML, now } from './core.js';
 import { initWorkout, loadWorkout, flushDays } from './workout.js';
 import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review } from './marks.js';
-import { CARD_ATTRS, cardsIn, heatName, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
+import { CARD_ATTRS, cardText, cardsIn, heatName, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
 const title=$('note-title'), editor=$('note-body');
 const drafts=(action,value)=>backup('drafts',action,value);
 const heat=new HeatLayer([title,editor]);
@@ -163,7 +163,17 @@ editor.addEventListener('keydown',event=>{
   if(mod&&event.key==='Enter'){event.preventDefault();finishCard(card);return;}
   if(event.key==='Tab'&&card.hasAttribute('data-editing')){event.preventDefault();caretIn(card.querySelector(side.classList.contains('card-front')?'.card-back':'.card-front'));}
 });
-editor.addEventListener('click',event=>{if(state.study)return;const card=event.target.closest?.('.card');if(card&&event.target===card)flipCard(card);});
+async function copyText(text){
+  try{await navigator.clipboard.writeText(text);return true;}
+  catch{const area=document.createElement('textarea');area.value=text;area.setAttribute('readonly','');area.className='offscreen';document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();return ok;}
+}
+// One tap puts a card's front and back on the clipboard, ready to talk through with a chatbot.
+async function copyCard(card,title){toast(await copyText(cardText(card,title))?'Card copied. Paste it into a chat.':'Copying was blocked. Select the text manually.');}
+editor.addEventListener('click',event=>{
+  const copy=event.target.closest?.('.card-copy');
+  if(copy){event.preventDefault();copyCard(copy.parentElement,state.notes.get(state.active)?.title||'');return;}
+  if(state.study)return;const card=event.target.closest?.('.card');if(card&&event.target===card)flipCard(card);
+});
 const cardCache=new Map();
 function noteCards(note){const key=note.id+state.direction,cached=cardCache.get(key);if(cached?.content===note.content)return cached.cards;const cards=cardsIn(note.content,Date.now(),state.direction);cardCache.set(key,{content:note.content,cards});return cards;}
 // Backwards, the answer is the prompt: only cards with a back take part, and passages marked before cards existed sit out.
@@ -273,6 +283,13 @@ drill.addEventListener('click',event=>{if(event.target===drill)endStudy();});
 $('drill-close').addEventListener('click',()=>endStudy());
 $('drill-reveal').addEventListener('click',revealCard);
 $('drill-open-note').addEventListener('click',openInNote);
+$('drill-copy').addEventListener('click',()=>{
+  const item=state.study?.queue[state.study.index],note=item&&state.notes.get(item.noteId);if(!note)return;
+  if(item.cardId){const found=cardElement(note,item.cardId);if(found)copyCard(found.element,note.title||'');return;}
+  const mark=(note.marks||[]).find(entry=>entry.id===item.markId);if(!mark)return;
+  const passageText=passage(noteText(note),mark,true).replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&');
+  copyText(`From my notes on "${note.title||'Untitled'}":\n\n${passageText.trim()}\n\nThe part I keep forgetting: ${mark.text}`).then(ok=>toast(ok?'Card copied. Paste it into a chat.':'Copying was blocked. Select the text manually.'));
+});
 for(const button of drill.querySelectorAll('.grade'))button.addEventListener('click',()=>gradeCard(button.dataset.result));
 function centerOn(spot){const scroller=$('editor-scroll'),box=scroller.getBoundingClientRect();scroller.scrollTop+=spot.top-box.top-box.height/2+Math.min(spot.height,box.height)/2;}
 $('study-button').addEventListener('click',()=>state.study?endStudy():startStudy());
