@@ -3,7 +3,7 @@ import { GROUPS, CATALOGUE, byId, slug, imageSearch } from './movements.js';
 import { initBody, openBody, closeBody } from './body.js';
 // A training day runs 4am to 4am, so a late-night session lands on the day it belonged to.
 const DAY_START=4;
-const FIELDS={weight:[['w','lb','decimal'],['r','reps','numeric'],['rir','RIR','numeric']],body:[['r','reps','numeric'],['w','+lb','decimal'],['rir','RIR','numeric']],time:[['sec','sec','numeric']]};
+const FIELDS={weight:[['w','lb','decimal'],['r','reps','numeric'],['rir','RIR','decimal']],body:[['r','reps','numeric'],['w','+lb','decimal'],['rir','RIR','decimal']],time:[['sec','sec','numeric']]};
 const state={days:new Map(),viewing:null,loaded:false,unauthorized:null};
 const queues=new Map();
 const SVG='http://www.w3.org/2000/svg';
