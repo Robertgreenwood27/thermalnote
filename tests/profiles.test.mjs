@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { createStorage } from '../lib/storage.mjs';
 import { createApp, passwordHash, profiles } from '../server.mjs';
 const noteId='3f0c2b1e-8a4d-4c6e-9f1a-2b3c4d5e6f70';
+// Throwaway credentials made fresh each run, so nothing in this file reads as a real secret.
+const robertPass=randomUUID(),catPass=randomUUID();
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=';
 
 test('a notebook from before profiles keeps every note, day, and session, all belonging to the primary account',async()=>{
@@ -41,15 +44,15 @@ test('a notebook from before profiles keeps every note, day, and session, all be
 
 test('two profiles sign in separately and never see each other’s notes, days, or pictures',async()=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'thermalnote-profiles-'));
- const env={APP_USERNAME:'robert',APP_PASSWORD_HASH:passwordHash('robert-pass'),APP_EXTRA_USERS:`Cat:${passwordHash('cat-pass')}`};
+ const env={APP_USERNAME:'robert',APP_PASSWORD_HASH:passwordHash(robertPass),APP_EXTRA_USERS:`Cat:${passwordHash(catPass)}`};
  const {server}=await createApp({env,dataDirectory:dir});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;
  const call=(cookie,url,method='GET',data)=>fetch(origin+url,{method,headers:{origin,'content-type':'application/json',cookie},body:data===undefined?undefined:JSON.stringify(data)});
  const signIn=async(username,password)=>{const response=await call('','/api/login','POST',{username,password});return {response,cookie:response.headers.get('set-cookie')?.split(';')[0]};};
  try{
-  assert.equal((await signIn('Cat','robert-pass')).response.status,401,'one person’s password does not open the other’s account');
-  assert.equal((await signIn('nobody','cat-pass')).response.status,401);
-  const robert=await signIn('robert','robert-pass'),cat=await signIn('cat','cat-pass');
+  assert.equal((await signIn('Cat',robertPass)).response.status,401,'one person’s password does not open the other’s account');
+  assert.equal((await signIn('nobody',catPass)).response.status,401);
+  const robert=await signIn('robert',robertPass),cat=await signIn('cat',catPass);
   assert.equal(robert.response.status,200);assert.equal(cat.response.status,200,'names are not case sensitive');
   assert.deepEqual(await (await call(cat.cookie,'/api/session')).json(),{username:'Cat',profile:'cat',storage:'local'});
   assert.equal((await call(robert.cookie,'/api/notes/'+noteId,'PUT',{title:'Robert',content:'<p>r</p>',version:0})).status,200);
@@ -71,10 +74,10 @@ test('two profiles sign in separately and never see each other’s notes, days, 
 
 test('a removed profile’s sessions stop working, and bad profile settings refuse to start',async()=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'thermalnote-removed-'));await mkdir(dir,{recursive:true});
- const base={APP_USERNAME:'robert',APP_PASSWORD_HASH:passwordHash('robert-pass')};
- const first=await createApp({env:{...base,APP_EXTRA_USERS:`Cat:${passwordHash('cat-pass')}`},dataDirectory:dir});
+ const base={APP_USERNAME:'robert',APP_PASSWORD_HASH:passwordHash(robertPass)};
+ const first=await createApp({env:{...base,APP_EXTRA_USERS:`Cat:${passwordHash(catPass)}`},dataDirectory:dir});
  await new Promise(resolve=>first.server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${first.server.address().port}`;
- const login=await fetch(origin+'/api/login',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({username:'Cat',password:'cat-pass'})});
+ const login=await fetch(origin+'/api/login',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({username:'Cat',password:catPass})});
  const cookie=login.headers.get('set-cookie').split(';')[0];
  await new Promise(resolve=>first.server.close(resolve));
  const second=await createApp({env:base,dataDirectory:dir});
