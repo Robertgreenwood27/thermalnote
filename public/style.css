@@ -231,3 +231,23 @@
 .note-body .card[data-editing]>.card-copy,.note-body .card[data-armed]>.card-copy{display:none}
 .drill-links{display:flex;justify-content:center;gap:22px}
 .offscreen{position:fixed;top:0;left:-9999px;opacity:0}
+/* Focus decides the order of the day, not what is on it. */
+#w-day>.w-scroll{display:flex;flex-direction:column}
+#w-day>.w-scroll>*{flex:none}
+#w-volume{order:1}.w-week{order:2}.weigh{order:3}.lift{order:4}.cardio{order:5}.yoga{order:6}.food{order:7}.mood{order:8}.focus-pick{order:9}
+[data-focus=functional] .cardio{order:4}[data-focus=functional] .yoga{order:5}[data-focus=functional] .lift{order:6}
+.w-week{margin-top:-10px}.w-week:empty{display:none}
+.cardio-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 18px minmax(0,1fr) 24px 30px;gap:6px;align-items:center;margin-bottom:4px}
+.cardio-pace{grid-column:2/6;font-size:.75rem;color:var(--accent);font-weight:600;margin:0 2px 8px}
+.cardio-pace:empty{display:none}
+.cardio-row .set-drop{grid-column:6;grid-row:1}
+.yoga-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 24px 30px;gap:6px;align-items:center;margin-bottom:12px}
+.yoga-note{grid-column:1/-1;padding:10px 11px;border-radius:8px;font-size:.9375rem}
+.daily-select{width:100%;background:#131315;border:1px solid #303035;border-radius:8px;padding:10px 8px;color:var(--text);font:inherit;font-size:.9375rem;outline:none}
+.daily-select:focus{border-color:var(--accent)}
+.cardio-row .daily-in,.yoga-row .daily-in{width:100%}
+.add-chips .chip{font-size:.8125rem;padding:7px 12px;color:var(--text)}
+.focus-row{display:inline-flex;background:#18181b;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.focus-row button{border-radius:999px;padding:8px 16px;font-size:.8125rem;font-weight:600;color:var(--muted)}
+.focus-row button[aria-pressed=true]{background:var(--accent);color:#21120c}
+.focus-hint{display:block;margin:8px 2px 0}

@@ -26,13 +26,22 @@
     <div id="w-day" class="w-pane">
       <div class="w-datebar"><button id="w-prev" class="icon-button" aria-label="Previous day">‹</button><span class="w-dateblock"><button id="w-date">Today</button><small id="w-subdate"></small></span><button id="w-next" class="icon-button" aria-label="Next day">›</button></div>
       <div class="w-scroll">
-        <section class="daily weigh"><label class="daily-label" for="w-weight">Morning weight</label><div class="daily-row"><input id="w-weight" class="daily-in" data-path="weight" inputmode="decimal" placeholder="—" autocomplete="off"><span class="daily-unit">lb</span><small id="w-weight-prev" class="daily-note"></small></div></section>
         <p id="w-volume" class="w-summary"></p>
-        <div id="w-movements"></div>
-        <button id="w-add" class="w-add" type="button">+ Add movement</button>
-        <section class="daily ride">
-          <div class="food-head"><h2>Ride</h2><span id="w-ride-speed"></span></div>
-          <div class="daily-row"><input id="w-ride-mi" class="daily-in" data-path="ride.mi" inputmode="decimal" placeholder="0" aria-label="Ride distance in miles" autocomplete="off"><span class="daily-unit">mi</span><input id="w-ride-min" class="daily-in" data-path="ride.min" inputmode="numeric" placeholder="0" aria-label="Ride time in minutes" autocomplete="off"><span class="daily-unit">min</span></div>
+        <p id="w-week" class="w-summary w-week"></p>
+        <section class="daily weigh"><label class="daily-label" for="w-weight">Morning weight</label><div class="daily-row"><input id="w-weight" class="daily-in" data-path="weight" inputmode="decimal" placeholder="—" autocomplete="off"><span class="daily-unit">lb</span><small id="w-weight-prev" class="daily-note"></small></div></section>
+        <section class="lift">
+          <div id="w-movements"></div>
+          <button id="w-add" class="w-add" type="button">+ Add movement</button>
+        </section>
+        <section class="daily cardio">
+          <div class="food-head"><h2>Cardio</h2></div>
+          <div id="w-cardio"></div>
+          <div id="w-cardio-add" class="chips add-chips"><button type="button" class="chip" data-cardio="run">+ Run</button><button type="button" class="chip" data-cardio="ride">+ Ride</button><button type="button" class="chip" data-cardio="walk">+ Walk</button><button type="button" class="chip" data-cardio="hike">+ Hike</button><button type="button" class="chip" data-cardio="swim">+ Swim</button></div>
+        </section>
+        <section class="daily yoga">
+          <div class="food-head"><h2>Yoga</h2></div>
+          <div id="w-yoga"></div>
+          <div class="chips add-chips"><button id="w-yoga-add" type="button" class="chip">+ Session</button><button id="w-yoga-pose" type="button" class="chip">+ Pose</button></div>
         </section>
         <section class="food">
           <div class="food-head"><h2>Food</h2><span id="w-protein"></span></div>
@@ -44,6 +53,11 @@
           <label class="daily-label" for="w-mood-morning">Morning <small>first thing</small></label><textarea id="w-mood-morning" class="mood-in" data-path="mood.morning" rows="2" placeholder="How are you waking up?"></textarea>
           <label class="daily-label" for="w-mood-noon">Midday <small>around noon</small></label><textarea id="w-mood-noon" class="mood-in" data-path="mood.noon" rows="2" placeholder="How is the day going?"></textarea>
           <label class="daily-label" for="w-mood-night">Bedtime <small>before bed</small></label><textarea id="w-mood-night" class="mood-in" data-path="mood.night" rows="2" placeholder="How did today feel?"></textarea>
+        </section>
+        <section class="daily focus-pick">
+          <div class="food-head"><h2>Focus</h2></div>
+          <div class="focus-row" role="group" aria-label="Training focus"><button type="button" data-focus-pick="hypertrophy">Hypertrophy</button><button type="button" data-focus-pick="functional">Functional</button></div>
+          <p class="daily-note focus-hint">Changes what comes first on this page and in the movement picker. Nothing is hidden.</p>
         </section>
       </div>
       <footer class="w-bar"><button id="w-copy" class="primary" type="button">Copy day</button></footer>

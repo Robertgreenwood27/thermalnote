@@ -68,12 +68,18 @@ Movements added by hand in the picker are not mapped to muscles yet and stay dar
 
 The figure downloads only the first time the Body pane is opened, and nothing is drawn while it is out of sight.
 
-### Weight, rides, and mood
+### Focus
 
-Everything here is optional and can stay blank. A day with a forgotten weigh-in or no ride is still a normal day.
+Each account picks a focus at the bottom of the day: **Hypertrophy** or **Functional**. Both have every feature; the focus only decides what comes first. Hypertrophy leads with lifts, sums the week as sets and pounds, and lists protein before calories. Functional leads with cardio and yoga, sums the week as active minutes, miles, and yoga sessions, lists calories first, and opens the movement picker on functional work and yoga. The first account starts on Hypertrophy and any other on Functional; the choice is saved to the account, so it follows you between devices. It is stored as a reserved day, `1970-01-01`, which never appears in history.
 
-- **Morning weight** sits at the top of the day, with the last weigh-in and the change since it beside it.
-- **Ride** takes distance in miles and time in minutes, and shows average speed once both are in.
+### Weight, cardio, yoga, and mood
+
+Everything here is optional and can stay blank.
+
+- **Morning weight** sits at the top of the day, with the last weigh-in, the change since it, and a 7-day average compared against the week before. The average smooths out water and salt, so it is the number to watch for weight loss.
+- **Cardio** is a short list: run, ride, walk, hike, swim, row, or elliptical, each with miles and minutes. Rides show mph; everything else shows pace per mile. Days logged when this was a single ride open with that ride as their first entry.
+- **Yoga** sessions take a style (flow, hatha, yin, power, restorative, stretch, hot), minutes, and a note. **+ Pose** opens the catalogue's 36 yoga poses, logged as timed holds that light up the body map like any other movement.
+- The catalogue also has a **Functional** group: kettlebell swings, cleans, snatches, Turkish get-ups, carries, sled pushes, jumps, burpees, crawls, lunges, bridges, and small stabiliser work.
 - **Mood** has three short journal boxes: morning (first thing), midday (around noon), and bedtime.
 
 ### Food

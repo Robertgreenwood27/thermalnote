@@ -1,6 +1,6 @@
 import { HeatLayer } from './heat.js';
 import { $, api, toast, backup, escapeHTML, now, useBackupProfile } from './core.js';
-import { initWorkout, loadWorkout, flushDays } from './workout.js';
+import { initWorkout, loadWorkout, flushDays, setProfile } from './workout.js';
 import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review } from './marks.js';
 import { CARD_ATTRS, cardText, cardsIn, heatName, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
 const title=$('note-title'), editor=$('note-body');
@@ -358,7 +358,7 @@ let started=false,profile;
 async function enterApp(session){
   // Someone else signing in on a tab whose session ran out starts clean; the last person's unsaved work stays in their own draft store.
   if(started&&session.profile!==profile){location.reload();return;}
-  profile=session.profile;useBackupProfile(profile);state.storage=session.storage;$('login-view').hidden=true;$('app-view').hidden=false;
+  profile=session.profile;useBackupProfile(profile);setProfile(profile);state.storage=session.storage;$('login-view').hidden=true;$('app-view').hidden=false;
   if(!started){started=true;initWorkout({onUnauthorized:showLogin});}
   await setMode(readMode());
 }
