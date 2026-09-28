@@ -18,6 +18,22 @@ npm start
 
 Open http://127.0.0.1:4317 and sign in with the username and password supplied during setup. The password is stored as a salted scrypt hash in the private `.env` file; it is never sent to the browser. `.env` and all local note data are excluded from Git.
 
+## More than one person
+
+Each person gets their own notebook, training log, cards, and pictures behind the same sign-in screen; nobody can see or change anyone else's. The account in `APP_USERNAME` / `APP_PASSWORD_HASH` is the primary one and owns everything written before profiles existed. Others are listed in `APP_EXTRA_USERS` as `Name:hash`, one per line or comma-separated, where the hash is made the same way as the primary one:
+
+```sh
+node -e "import('./server.mjs').then(m=>console.log(m.passwordHash(process.argv[1])))" 'their password'
+```
+
+```dotenv
+APP_EXTRA_USERS=Cat:0f3a…:9b1c…
+```
+
+Usernames are not case sensitive. A person's notes, days, and sessions are filed under their lowercased name, so renaming someone in `APP_EXTRA_USERS` starts them a new, empty profile (renaming the primary account does not). Removing a person signs them out; their data stays in the database. Unsaved browser drafts are kept per person, so two people sharing a browser never have their drafts crossed.
+
+With Supabase, run `supabase-profiles.sql` once before deploying this version. It only adds an `owner` column (defaulting to the primary account), re-keys training days by person and date, adds owner-aware save functions, and first copies notes and days into `thermalnote_notes_before_profiles` and `thermalnote_days_before_profiles`. Local notebooks upgrade themselves on start.
+
 The server binds only to this computer by default. Keep its terminal running while using the app. `./start.sh` also starts it.
 
 ## Lift
@@ -124,7 +140,7 @@ The notes schema and private image bucket were installed on September 16, 2026. 
 
 To connect Supabase:
 
-1. For a new installation, run `supabase.sql`, `supabase-auth.sql`, then `supabase-workout.sql` in this project's SQL editor. A notebook installed before study marks existed needs `supabase-marks.sql` once as well; it adds the `marks` column and replaces the save function, and it does not touch a word of existing notes. They create private notes, version-checked save/delete functions, a private images bucket, durable sessions, a shared login attempt limit, and the training-day table with its own version-checked save. They do not open anonymous access or alter unrelated tables.
+1. For a new installation, run `supabase.sql`, `supabase-auth.sql`, `supabase-workout.sql`, then `supabase-profiles.sql` in this project's SQL editor. A notebook installed before study marks existed needs `supabase-marks.sql` once as well; it adds the `marks` column and replaces the save function, and it does not touch a word of existing notes. They create private notes, version-checked save/delete functions, a private images bucket, durable sessions, a shared login attempt limit, and the training-day table with its own version-checked save. They do not open anonymous access or alter unrelated tables.
 2. Set these values in the private `.env` file:
 
    ```dotenv
@@ -141,7 +157,7 @@ Local and Supabase storage are separate; switching modes does not copy existing 
 
 Vercel serves the interface as static files and runs the private API through `api/index.mjs`. Supabase is required on Vercel; the app refuses to save to its temporary filesystem. Sessions expire after seven days and survive server restarts. Logging out revokes the session across all instances. Changing the username or password hash also invalidates existing sessions. Images upload directly to the private bucket using short-lived upload permissions; viewing an image requires login and a temporary signed download URL.
 
-For a conventional Node host, provide persistent storage or configure Supabase. Set `HOST=0.0.0.0`, an appropriate `PORT`, `APP_ORIGIN` to the exact HTTPS origin, and `COOKIE_SECURE=true` behind a trusted HTTPS reverse proxy. No sign-up or second-user flow exists.
+For a conventional Node host, provide persistent storage or configure Supabase. Set `HOST=0.0.0.0`, an appropriate `PORT`, `APP_ORIGIN` to the exact HTTPS origin, and `COOKIE_SECURE=true` behind a trusted HTTPS reverse proxy. There is no sign-up; additional people are added through `APP_EXTRA_USERS`.
 
 ## Checks
 
@@ -179,6 +195,7 @@ Set these variables under the Vercel project's Settings → Environment Variable
 | --- | --- |
 | `APP_USERNAME` | Your username from the private `.env.vercel` file |
 | `APP_PASSWORD_HASH` | Copy the full hash from `.env.vercel`; this is not the plaintext password |
+| `APP_EXTRA_USERS` | Optional. Other people as `Name:hash`; see “More than one person” |
 | `STORAGE_MODE` | `supabase` |
 | `SUPABASE_URL` | `https://sedyckmbnyydsfjoycuz.supabase.co` |
 | `SUPABASE_SECRET_KEY` | Your Supabase server secret (`sb_secret_…`) or legacy `service_role` key |

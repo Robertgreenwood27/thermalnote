@@ -22,9 +22,9 @@ test('repeated letters use the actual cursor position; old text never reheats',(
 });
 test('durable storage rejects stale writers and survives reopening',async()=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'thermalnote-db-'));let db=await createStorage({},dir);
- try{const first=await db.save({id,title:'My note',content:'<p>Hot text</p>'},0);assert.equal(first.version,1);
- const second=await db.save({...first,content:'<p>Cool text</p>'},1);assert.equal(second.version,2);
- await assert.rejects(()=>db.save({...first,content:'stale'},1),ConflictError);db.close();db=await createStorage({},dir);assert.equal((await db.list())[0].content,'<p>Cool text</p>');await db.remove(id,2);assert.equal((await db.list()).length,0);
+ try{const first=await db.save('primary',{id,title:'My note',content:'<p>Hot text</p>'},0);assert.equal(first.version,1);
+ const second=await db.save('primary',{...first,content:'<p>Cool text</p>'},1);assert.equal(second.version,2);
+ await assert.rejects(()=>db.save('primary',{...first,content:'stale'},1),ConflictError);db.close();db=await createStorage({},dir);assert.equal((await db.list('primary'))[0].content,'<p>Cool text</p>');await db.remove('primary',id,2);assert.equal((await db.list('primary')).length,0);
  }finally{db.close();await rm(dir,{recursive:true,force:true});}
 });
 test('private API authenticates writes, enforces versions, and protects images',async()=>{
@@ -101,13 +101,13 @@ test('Vercel refuses local storage before creating files',async()=>{
 test('a training day is one versioned document and stale writers are refused',async()=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'thermalnote-days-'));let db=await createStorage({},dir);
  try{const day={movements:[{id:'a',mid:'barbell-curl',name:'Barbell Curl',kind:'weight',sets:[{w:'30',r:'10'}]}],meals:[]};
- const first=await db.saveDay('2026-09-21',day,0);assert.equal(first.version,1);assert.deepEqual(first.data,day);
- const second=await db.saveDay('2026-09-21',{...day,meals:[{name:'Eggs',protein:'30'}]},1);assert.equal(second.version,2);
- await assert.rejects(()=>db.saveDay('2026-09-21',day,1),ConflictError);
- await assert.rejects(()=>db.saveDay('2026-09-21',day,0),ConflictError);
+ const first=await db.saveDay('primary','2026-09-21',day,0);assert.equal(first.version,1);assert.deepEqual(first.data,day);
+ const second=await db.saveDay('primary','2026-09-21',{...day,meals:[{name:'Eggs',protein:'30'}]},1);assert.equal(second.version,2);
+ await assert.rejects(()=>db.saveDay('primary','2026-09-21',day,1),ConflictError);
+ await assert.rejects(()=>db.saveDay('primary','2026-09-21',day,0),ConflictError);
  db.close();db=await createStorage({},dir);
- const days=await db.listDays();assert.equal(days.length,1);assert.equal(days[0].data.meals[0].name,'Eggs');assert.equal(days[0].data.movements[0].sets[0].r,'10');
- await db.saveDay('2026-09-22',{movements:[],meals:[]},0);assert.deepEqual((await db.listDays()).map(d=>d.date),['2026-09-22','2026-09-21']);
+ const days=await db.listDays('primary');assert.equal(days.length,1);assert.equal(days[0].data.meals[0].name,'Eggs');assert.equal(days[0].data.movements[0].sets[0].r,'10');
+ await db.saveDay('primary','2026-09-22',{movements:[],meals:[]},0);assert.deepEqual((await db.listDays('primary')).map(d=>d.date),['2026-09-22','2026-09-21']);
  }finally{db.close();await rm(dir,{recursive:true,force:true});}
 });
 test('the day API is private, version checked, and rejects malformed dates',async()=>{

@@ -93,13 +93,13 @@ test('marks persist beside the note text, and a notebook written before marks ga
  let db=await createStorage({},dir);
  const marks=JSON.stringify([mark(0,7,'TACACS+')]);
  try{
-  const first=await db.save({id,title:'AAA',content:'<p>TACACS+ is centralized AAA.</p>',marks},0);
+  const first=await db.save('primary',{id,title:'AAA',content:'<p>TACACS+ is centralized AAA.</p>',marks},0);
   assert.equal(first.marks,marks);
   db.close();db=await createStorage({},dir);
-  const [reopened]=await db.list();
+  const [reopened]=await db.list('primary');
   assert.equal(reopened.marks,marks,'marks survive a restart');
   assert.equal(reopened.content,'<p>TACACS+ is centralized AAA.</p>','the note text is untouched by marking');
-  const cleared=await db.save({...reopened,marks:'[]'},reopened.version);
+  const cleared=await db.save('primary',{...reopened,marks:'[]'},reopened.version);
   assert.equal(cleared.marks,'[]');
  }finally{db.close();await rm(dir,{recursive:true,force:true});}
 });

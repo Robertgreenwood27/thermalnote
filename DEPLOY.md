@@ -20,6 +20,7 @@ The private file `~/Projects/thermalnote/.env.vercel` on your computer holds the
 | --- | --- |
 | `APP_USERNAME` | Copy from your private `.env.vercel` |
 | `APP_PASSWORD_HASH` | Copy the entire existing hash from `.env.vercel` |
+| `APP_EXTRA_USERS` | Optional: other people as `Name:hash` (see README) |
 | `STORAGE_MODE` | `supabase` |
 | `SUPABASE_URL` | `https://sedyckmbnyydsfjoycuz.supabase.co` |
 | `SUPABASE_SECRET_KEY` | The server secret key from step 1 |

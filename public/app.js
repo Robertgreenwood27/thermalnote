@@ -1,5 +1,5 @@
 import { HeatLayer } from './heat.js';
-import { $, api, toast, backup, escapeHTML, now } from './core.js';
+import { $, api, toast, backup, escapeHTML, now, useBackupProfile } from './core.js';
 import { initWorkout, loadWorkout, flushDays } from './workout.js';
 import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review } from './marks.js';
 import { CARD_ATTRS, cardText, cardsIn, heatName, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
@@ -354,9 +354,11 @@ async function setMode(next){
   document.title=next==='workout'?'Lift · Thermalnote':'Thermalnote';
   try{await (next==='workout'?loadWorkout():openNotes());}catch(error){if(error.status===401)showLogin();else toast(error.message);}
 }
-let started=false;
+let started=false,profile;
 async function enterApp(session){
-  state.storage=session.storage;$('login-view').hidden=true;$('app-view').hidden=false;
+  // Someone else signing in on a tab whose session ran out starts clean; the last person's unsaved work stays in their own draft store.
+  if(started&&session.profile!==profile){location.reload();return;}
+  profile=session.profile;useBackupProfile(profile);state.storage=session.storage;$('login-view').hidden=true;$('app-view').hidden=false;
   if(!started){started=true;initWorkout({onUnauthorized:showLogin});}
   await setMode(readMode());
 }
