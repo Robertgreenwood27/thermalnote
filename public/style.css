@@ -251,3 +251,21 @@
 .focus-row button{border-radius:999px;padding:8px 16px;font-size:.8125rem;font-weight:600;color:var(--muted)}
 .focus-row button[aria-pressed=true]{background:var(--accent);color:#21120c}
 .focus-hint{display:block;margin:8px 2px 0}
+/* The plan: what today holds, and under each planned movement the target and the next step. */
+.plan{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:14px 14px 13px;margin-bottom:12px}
+.plan-kicker{margin:0;font-size:.6875rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.plan-title{margin:4px 0 2px;font-size:1.25rem;font-weight:600}
+.plan-sub{margin:0 0 12px;font-size:.8125rem;color:#b9b9c0;line-height:1.5}
+.plan-start{width:100%;background:var(--accent);color:#21120c;border-radius:9px;padding:13px;font-size:.9375rem;font-weight:600}
+.plan-start:hover{background:#ffaa33}
+.plan-start.quiet{background:#2a1f00;color:var(--accent);font-size:.875rem;padding:11px}
+.plan-alt{display:block;margin:8px auto 0;font-size:.8125rem;color:var(--muted);padding:4px 8px}
+.plan-alt:hover{color:var(--text)}
+.plan-rules{margin:12px 0 0;font-size:.75rem;color:var(--muted);line-height:1.5}
+.plan-head{margin-top:20px}
+.mv-plan{margin:-4px 0 11px;font-size:.75rem;line-height:1.5}
+.mv-plan p{margin:0}
+.mv-target{color:#d6d6dc;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.mv-swap{font-size:.75rem;color:var(--accent);padding:2px 6px;border-radius:6px;background:#2a1f00}
+.mv-step{color:#ffd60a}
+.mv-note{color:var(--muted)}

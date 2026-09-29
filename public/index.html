@@ -30,6 +30,7 @@
         <p id="w-week" class="w-summary w-week"></p>
         <section class="daily weigh"><label class="daily-label" for="w-weight">Morning weight</label><div class="daily-row"><input id="w-weight" class="daily-in" data-path="weight" inputmode="decimal" placeholder="—" autocomplete="off"><span class="daily-unit">lb</span><small id="w-weight-prev" class="daily-note"></small></div></section>
         <section class="lift">
+          <div id="w-plan" class="plan" hidden></div>
           <div id="w-movements"></div>
           <button id="w-add" class="w-add" type="button">+ Add movement</button>
         </section>
@@ -58,6 +59,9 @@
           <div class="food-head"><h2>Focus</h2></div>
           <div class="focus-row" role="group" aria-label="Training focus"><button type="button" data-focus-pick="hypertrophy">Hypertrophy</button><button type="button" data-focus-pick="functional">Functional</button></div>
           <p class="daily-note focus-hint">Changes what comes first on this page and in the movement picker. Nothing is hidden.</p>
+          <div class="food-head plan-head"><h2>Plan</h2></div>
+          <div class="focus-row" role="group" aria-label="Follow the training plan"><button type="button" data-plan-pick="on">Follow plan</button><button type="button" data-plan-pick="off">Off</button></div>
+          <p class="daily-note focus-hint">Full-body hypertrophy, Tue, Thu, and Sat. Today's page says which workout, and fills in the weights to aim for.</p>
         </section>
       </div>
       <footer class="w-bar"><button id="w-copy" class="primary" type="button">Copy day</button></footer>

@@ -19,7 +19,7 @@ export const GROUPS=[
   {id:'triceps',name:'Triceps',movements:['Close-Grip Bench Press','Triceps Pushdown','Rope Pushdown','Overhead Triceps Extension','Skull Crusher','Dumbbell Kickback','Bench Dip']},
   {id:'forearms',name:'Forearms',movements:['Wrist Curl','Reverse Wrist Curl','Reverse Curl','Farmer’s Carry','Dead Hang','Plate Pinch']},
   {id:'quads',name:'Quads',movements:['Back Squat','Front Squat','Hack Squat','Leg Press','Goblet Squat','Bulgarian Split Squat','Walking Lunge','Step-Up','Leg Extension','Sissy Squat','Wall Sit']},
-  {id:'hamstrings',name:'Hamstrings',movements:['Romanian Deadlift','Stiff-Leg Deadlift','Single-Leg RDL','Lying Leg Curl','Seated Leg Curl','Nordic Curl','Good Morning','Glute-Ham Raise']},
+  {id:'hamstrings',name:'Hamstrings',movements:['Romanian Deadlift','Dumbbell Romanian Deadlift','Stiff-Leg Deadlift','Single-Leg RDL','Lying Leg Curl','Seated Leg Curl','Nordic Curl','Good Morning','Glute-Ham Raise']},
   {id:'glutes',name:'Glutes',movements:['Hip Thrust','Barbell Glute Bridge','Sumo Deadlift','Cable Pull-Through','Cable Kickback','Hip Abduction','Reverse Hyperextension']},
   {id:'calves',name:'Calves',movements:['Standing Calf Raise','Seated Calf Raise','Leg Press Calf Raise','Single-Leg Calf Raise','Donkey Calf Raise']},
   {id:'core',name:'Core',movements:['Plank','Side Plank','Hollow Hold','Hanging Leg Raise','Cable Crunch','Ab Wheel Rollout','Crunch','Bicycle Crunch','Russian Twist','Pallof Press','Dead Bug']},

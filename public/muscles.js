@@ -187,6 +187,7 @@ export const TARGETS={
   'wall-sit':{primary:['quads'],secondary:['glutes']},
 
   'romanian-deadlift':{primary:['hamstrings','glutes'],secondary:['erectors','adductors','forearm-flexors']},
+  'dumbbell-romanian-deadlift':{primary:['hamstrings','glutes'],secondary:['erectors','adductors','forearm-flexors']},
   'stiff-leg-deadlift':{primary:['hamstrings','erectors'],secondary:['glutes','forearm-flexors']},
   'single-leg-rdl':{primary:['hamstrings','glutes'],secondary:['erectors','abductors']},
   'lying-leg-curl':{primary:['hamstrings'],secondary:['calves']},

@@ -72,6 +72,18 @@ The figure downloads only the first time the Body pane is opened, and nothing is
 
 Each account picks a focus at the bottom of the day: **Hypertrophy** or **Functional**. Both have every feature; the focus only decides what comes first. Hypertrophy leads with lifts, sums the week as sets and pounds, and lists protein before calories. Functional leads with cardio and yoga, sums the week as active minutes, miles, and yoga sessions, lists calories first, and opens the movement picker on functional work and yoga. The first account starts on Hypertrophy and any other on Functional; the choice is saved to the account, so it follows you between devices. It is stored as a reserved day, `1970-01-01`, which never appears in history.
 
+### Plan
+
+The app can carry a training plan and do the thinking: which workout today, what goes in it, and what to lift. The plan shipped is **Full-body hypertrophy, beginner**: workouts A and B on Tuesday, Thursday, and Saturday.
+
+- **Which workout.** A training day's page says *Workout A today* (or B) with **Start workout**, and names the other one in case you would rather swap. A and B simply alternate (A B A, then B A B the next week), and the app goes by the last workout done rather than the calendar, so a missed Thursday means Saturday brings the workout that was missed. Other days say *Rest day* and what comes next, with a button to do it early.
+- **What to lift.** Start puts all six movements on the page. Under each one: the target (*3 × 8–12 · RIR 1–2 · rest 2–3 min · last set to failure*) and the next step, which follows the plan's rule. Every set at the top of the range last time means *Add 5 lb*, with the heavier weight and the bottom of the range filled in. Anything short keeps the weight and says how many reps are left to earn it. Dumbbells go up by 5 lb and the leg press by 10–20. The first movement of each workout reminds you to warm up.
+- **Suggestions are not work.** The filled-in numbers are dimmed, and they don't count toward volume, history, or the rotation until you type into the movement. Typing the RIR is enough to confirm numbers you hit exactly.
+- **Swaps.** A movement with an alternative has a **⇄** button: leg press ⇄ goblet squat, seated leg curl ⇄ dumbbell RDL, pull-up ⇄ lat pulldown, cable ⇄ dumbbell lateral raise. The swap is remembered: that slot opens on whatever filled it last time, until you swap back.
+- **Still free.** **+ Add movement**, removing a movement, extra sets, and every other part of the day work as before. **Plan** at the bottom of the page turns it off or on. It starts on for a Hypertrophy focus and off for Functional.
+
+The plan is one table at the top of `public/plan.js`, covering days, sets, rep ranges, rest, swaps, and increments, so changing it means editing a line and reloading.
+
 ### Weight, cardio, yoga, and mood
 
 Everything here is optional and can stay blank.

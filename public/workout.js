@@ -1,6 +1,7 @@
 import { $, api, toast, backup, now } from './core.js';
 import { GROUPS, CATALOGUE, byId, slug, imageSearch } from './movements.js';
 import { initBody, openBody, closeBody } from './body.js';
+import { PLAN, slotOf, isTrainingDay, nextTrainingDay, nextWorkout, targetText, progress, noteFor } from './plan.js';
 // A training day runs 4am to 4am, so a late-night session lands on the day it belonged to.
 const DAY_START=4;
 const FIELDS={weight:[['w','lb','decimal'],['r','reps','numeric'],['rir','RIR','decimal']],body:[['r','reps','numeric'],['w','+lb','decimal'],['rir','RIR','decimal']],time:[['sec','sec','numeric']]};
@@ -13,6 +14,8 @@ export function setProfile(profile){state.profile=profile||'primary';}
 // Two focuses over the same features. Nothing is hidden: the focus decides what comes first.
 const FOCUSES={hypertrophy:'Hypertrophy',functional:'Functional'};
 const focus=()=>FOCUSES[settingsDoc().data.focus]?settingsDoc().data.focus:state.profile==='primary'?'hypertrophy':'functional';
+// The plan is on for a hypertrophy focus unless it has been turned off, and off otherwise until turned on.
+const planOn=()=>typeof settingsDoc().data.plan==='boolean'?settingsDoc().data.plan:focus()==='hypertrophy';
 const queues=new Map();
 const SVG='http://www.w3.org/2000/svg';
 function magnifier(){const svg=document.createElementNS(SVG,'svg');svg.setAttribute('viewBox','0 0 16 16');svg.setAttribute('width','15');svg.setAttribute('height','15');svg.setAttribute('aria-hidden','true');const ring=document.createElementNS(SVG,'circle');ring.setAttribute('cx','6.8');ring.setAttribute('cy','6.8');ring.setAttribute('r','4.5');const handle=document.createElementNS(SVG,'line');handle.setAttribute('x1','10.2');handle.setAttribute('y1','10.2');handle.setAttribute('x2','14');handle.setAttribute('y2','14');for(const part of[ring,handle]){part.setAttribute('fill','none');part.setAttribute('stroke','currentColor');part.setAttribute('stroke-width','1.7');part.setAttribute('stroke-linecap','round');}svg.append(ring,handle);return svg;}
@@ -56,7 +59,8 @@ const hasCardio=doc=>cardioOf(doc).length>0;
 const hasYoga=doc=>yogaOf(doc).length>0;
 const hasMood=doc=>MOODS.some(([key])=>text(doc.data.mood?.[key]));
 const mealLogged=meal=>text(meal.name)||num(meal.protein)>0||num(meal.cal)>0;
-const logged=entry=>entry.sets.filter(set=>entry.kind==='time'?num(set.sec)>0:num(set.r)>0);
+// A plan's pre-filled numbers are targets, not work done: they count once a set is typed into (RIR is enough).
+const logged=entry=>entry.sets.filter(set=>!(entry.plan&&set.g)&&(entry.kind==='time'?num(set.sec)>0:num(set.r)>0));
 const hasContent=doc=>doc.data.movements.some(entry=>logged(entry).length)||doc.data.meals.some(mealLogged)||num(doc.data.weight)>0||hasCardio(doc)||hasYoga(doc)||hasMood(doc);
 
 // ---- metrics ------------------------------------------------------------
@@ -93,6 +97,64 @@ function setText(set,kind){if(kind==='time')return `${fmt(num(set.sec))}s`;if(ki
 // Consecutive identical sets collapse: "30×10 ×3" rather than the same thing three times.
 export function setsText(entry,withRir=false){const parts=[];for(const set of logged(entry)){const label=setText(set,entry.kind)+(withRir&&set.rir!==''&&set.rir!=null?` RIR${fmt(num(set.rir))}`:'');const last=parts[parts.length-1];if(last&&last.label===label)last.count++;else parts.push({label,count:1});}return parts.map(part=>part.count>1?`${part.label} ×${part.count}`:part.label).join(', ');}
 function previous(mid,beforeDate){const dates=[...state.days.keys()].filter(date=>date<beforeDate).sort().reverse();for(const date of dates){const entry=state.days.get(date).data.movements.find(item=>item.mid===mid);if(entry&&logged(entry).length)return{date,entry};}return null;}
+// ---- the plan -----------------------------------------------------------
+// A workout counts as done once any of its movements has a logged set, so opening one and walking away does not move the rotation.
+const planDone=doc=>!!doc.data.plan&&doc.data.movements.some(entry=>entry.plan&&logged(entry).length);
+function lastWorkout(beforeDate){const dates=[...state.days.keys()].filter(date=>date<beforeDate).sort().reverse();for(const date of dates){const doc=state.days.get(date);if(planDone(doc))return{date,letter:doc.data.plan};}return null;}
+// A slot opens on whichever of its options filled it last time, so a home swap sticks until the gym comes back.
+// Only this slot counts: goblet squats done in workout B say nothing about what fills A's leg press.
+function preferredOption(letter,index,date){
+  const slot=slotOf(letter,index),dates=[...state.days.keys()].filter(day=>day<date).sort().reverse();
+  for(const day of dates){const entry=state.days.get(day).data.movements.find(item=>item.plan?.w===letter&&item.plan?.i===index&&logged(item).length);const name=entry&&slot.options.find(option=>slug(option)===entry.mid);if(name)return name;}
+  return slot.options[0];
+}
+function plannedEntry(letter,index,name,date){
+  const movement=byId.get(slug(name))||{id:slug(name),name,group:'custom',kind:'weight'};
+  const history=previous(movement.id,date);
+  return{id:crypto.randomUUID(),mid:movement.id,name:movement.name,group:movement.group,kind:movement.kind,plan:{w:letter,i:index},sets:progress(slotOf(letter,index),movement.name,history&&{sets:logged(history.entry)}).sets};
+}
+function startWorkout(letter){
+  const doc=docFor(state.viewing);doc.data.plan=letter;
+  for(const[index,slot]of PLAN.workouts[letter].entries()){
+    const existing=doc.data.movements.find(entry=>slot.options.some(name=>slug(name)===entry.mid));
+    if(existing){existing.plan={w:letter,i:index};continue;}
+    doc.data.movements.push(plannedEntry(letter,index,preferredOption(letter,index,state.viewing),state.viewing));
+  }
+  markDirty(state.viewing);renderDay();
+}
+function swapOption(entry){
+  const slot=slotOf(entry.plan.w,entry.plan.i);if(!slot||slot.options.length<2)return;
+  const typed=entry.sets.some(set=>!set.g&&(num(set.w)>0||num(set.r)>0||num(set.sec)>0));
+  const name=slot.options[(slot.options.findIndex(option=>slug(option)===entry.mid)+1)%slot.options.length];
+  if(typed&&!confirm(`Swap to ${name}? The sets typed for ${entry.name} will be cleared.`))return false;
+  const doc=docFor(state.viewing);doc.data.movements[doc.data.movements.indexOf(entry)]={...plannedEntry(entry.plan.w,entry.plan.i,name,state.viewing),id:entry.id};
+  return true;
+}
+function renderPlan(doc){
+  const box=$('w-plan');box.replaceChildren();
+  const today=doc.date===dayKey();
+  if(!planOn()||(!doc.data.plan&&!today)){box.hidden=true;return;}
+  box.hidden=false;
+  const rules=el('p','plan-rules',`Leave ${PLAN.rir.join('–')} reps in the tank. Big lifts rest ${PLAN.rest.big.join('–')} min, the rest ${PLAN.rest.small.join('–')}. Top of the range on every set, then add weight.`);
+  if(doc.data.plan){
+    const slots=PLAN.workouts[doc.data.plan]||[],entries=doc.data.movements.filter(entry=>entry.plan?.w===doc.data.plan);
+    const done=entries.filter(entry=>logged(entry).length>=(slotOf(entry.plan.w,entry.plan.i)?.sets||1)).length;
+    box.append(el('p','plan-kicker',PLAN.name),el('h2','plan-title',`Workout ${doc.data.plan}`),el('p','plan-sub',`${done} of ${slots.length} movements done`),rules);
+    return;
+  }
+  const last=lastWorkout(doc.date),letter=nextWorkout(last?.letter),other=nextWorkout(letter);
+  const names=PLAN.workouts[letter].map((slot,index)=>preferredOption(letter,index,doc.date)).join(', ');
+  const start=el('button','plan-start',`Start workout ${letter}`);start.type='button';start.dataset.act='start-plan';start.dataset.letter=letter;
+  const alt=el('button','plan-alt',`or workout ${other}`);alt.type='button';alt.dataset.act='start-plan';alt.dataset.letter=other;
+  if(isTrainingDay(doc.date)){
+    box.append(el('p','plan-kicker',PLAN.name),el('h2','plan-title',`Workout ${letter} today`),el('p','plan-sub',names),start,alt,rules);
+  }else{
+    const next=nextTrainingDay(doc.date);
+    box.append(el('p','plan-kicker',PLAN.name),el('h2','plan-title','Rest day'),el('p','plan-sub',`Next: workout ${letter} on ${new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(asDate(next))}. ${names}.`));
+    start.textContent=`Do workout ${letter} today instead`;start.classList.add('quiet');box.append(start);
+  }
+}
+
 function best(mid,excludeDate){let volume=0,top=0;for(const[date,doc]of state.days){if(date===excludeDate)continue;const entry=doc.data.movements.find(item=>item.mid===mid);if(!entry||!logged(entry).length)continue;volume=Math.max(volume,entryVolume(entry));if(entry.kind==='weight')for(const set of logged(entry))top=Math.max(top,e1rm(set));}return{volume,top};}
 
 // ---- saving -------------------------------------------------------------
@@ -117,6 +179,17 @@ function movementCard(entry,date){
   const past=el('p','mv-prev');
   past.append(el('span','mv-prev-main',history?`Last ${shortDate(history.date)}: ${setsText(history.entry)} · ${volumeText(history.entry)}`:'First time logging this'));
   if(record.volume>0)past.append(el('span','mv-pb',entry.kind==='weight'?`PB ${group(record.volume)} lb${record.top?` · ${fmt(record.top)} e1RM`:''}`:`PB ${group(record.volume)}${entry.kind==='body'?' reps':'s'}`));
+  const slot=entry.plan&&slotOf(entry.plan.w,entry.plan.i);
+  if(slot){
+    const plan=el('div','mv-plan');
+    const target=el('p','mv-target',targetText(slot));
+    if(slot.options.length>1){const swap=el('button','mv-swap',`⇄ ${slot.options[(slot.options.findIndex(option=>slug(option)===entry.mid)+1)%slot.options.length]}`);swap.type='button';swap.dataset.act='swap-option';swap.title='Swap for the other option';target.append(swap);}
+    plan.append(target,el('p','mv-step',progress(slot,entry.name,history&&{sets:logged(history.entry)}).text));
+    const notes=[entry.plan.i===0?'Warm up first: 1–2 light sets.':'',noteFor(entry.name)].filter(Boolean);
+    if(notes.length)plan.append(el('p','mv-note',notes.join(' ')));
+    // A planned movement's first time is already spelled out in its next step.
+    section.append(head);if(history)section.append(past);section.append(plan);
+  }
   const fields=FIELDS[entry.kind]||FIELDS.weight;
   const grid=el('div','mv-grid');grid.style.setProperty('--cols',fields.length);
   grid.append(el('span','col-h'));
@@ -133,7 +206,8 @@ function movementCard(entry,date){
   const foot=el('div','mv-foot');
   const add=el('button','add-set','+ Set');add.type='button';add.dataset.act='add-set';
   foot.append(add,el('span','mv-total'));
-  section.append(head,past,grid,foot);
+  if(!slot)section.append(head,past);
+  section.append(grid,foot);
   refresh(section,entry,date);
   return section;
 }
@@ -209,6 +283,7 @@ function renderYoga(doc){
 function renderFocus(){
   const current=focus();$('mode-workout').dataset.focus=current;
   for(const button of document.querySelectorAll('[data-focus-pick]'))button.setAttribute('aria-pressed',String(button.dataset.focusPick===current));
+  for(const button of document.querySelectorAll('[data-plan-pick]'))button.setAttribute('aria-pressed',String((button.dataset.planPick==='on')===planOn()));
 }
 // The fields that are a single value per day, not a list: weight and the three check-ins.
 function renderDaily(doc){for(const input of document.querySelectorAll('#w-day [data-path]')){const [head,key]=input.dataset.path.split('.');const value=key?doc.data[head]?.[key]:doc.data[head];input.value=value??'';}}
@@ -217,9 +292,10 @@ export function renderDay(){
   $('w-date').textContent=state.viewing===dayKey()?'Today':longDate(state.viewing);
   $('w-subdate').textContent=state.viewing===dayKey()?longDate(state.viewing):'';
   $('w-next').disabled=state.viewing>=dayKey();
+  renderPlan(doc);
   const list=$('w-movements');list.replaceChildren();
   for(const entry of doc.data.movements)list.append(movementCard(entry,state.viewing));
-  if(!doc.data.movements.length)list.append(el('p','empty','No movements yet. Add the first one below.'));
+  if(!doc.data.movements.length&&$('w-plan').hidden)list.append(el('p','empty','No movements yet. Add the first one below.'));
   renderFocus();renderMeals(doc);renderCardio(doc);renderYoga(doc);renderDaily(doc);renderTotals(doc);renderStatus();
 }
 const meals=doc=>doc.data.meals.some(mealLogged);
@@ -294,6 +370,7 @@ function addMovement(movement){
 // ---- clipboard ----------------------------------------------------------
 export function dayText(doc,{previous:withPrevious=true}={}){
   const lines=[longDate(doc.date)+`, ${asDate(doc.date).getFullYear()}`];
+  if(doc.data.plan)lines.push(`Plan: workout ${doc.data.plan} (${PLAN.name})`);
   if(num(doc.data.weight)>0)lines.push(`Morning weight: ${fmt(num(doc.data.weight))} lb`);
   const done=doc.data.movements.filter(entry=>logged(entry).length);
   if(done.length){
@@ -338,7 +415,7 @@ function editSet(target){
   const set=entry.sets[Number(target.dataset.set)];if(!set)return;
   set[target.dataset.key]=target.value.trim();
   if(set.g){delete set.g;target.closest('.mv').querySelectorAll('.set-in.ghost').forEach(input=>input.classList.remove('ghost'));for(const item of entry.sets)delete item.g;}
-  markDirty(state.viewing);refresh(section,entry,state.viewing);renderTotals(doc);
+  markDirty(state.viewing);refresh(section,entry,state.viewing);renderTotals(doc);if(entry.plan)renderPlan(doc);
 }
 export function initWorkout({onUnauthorized}={}){
   state.unauthorized=onUnauthorized;state.viewing=dayKey();
@@ -357,6 +434,7 @@ export function initWorkout({onUnauthorized}={}){
     if(action==='add-set'){const last=entry.sets[entry.sets.length-1];entry.sets.push(last?{...last,rir:''}:blank(entry.kind));for(const set of entry.sets)delete set.g;}
     if(action==='drop-set')entry.sets.splice(Number(event.target.dataset.set),1);
     if(action==='drop-movement')doc.data.movements.splice(doc.data.movements.indexOf(entry),1);
+    if(action==='swap-option'&&!swapOption(entry))return;
     if(action==='drop-set'&&!entry.sets.length)entry.sets.push(blank(entry.kind));
     markDirty(state.viewing);renderDay();
   });
@@ -405,6 +483,12 @@ export function initWorkout({onUnauthorized}={}){
     const doc=settingsDoc();if(doc.data.focus===button.dataset.focusPick)return;
     doc.data.focus=button.dataset.focusPick;markDirty(SETTINGS_DATE);renderDay();
     toast(`${FOCUSES[doc.data.focus]} focus. Everything is still here; this just changes what comes first.`);
+  });
+  $('w-plan').addEventListener('click',event=>{const button=event.target.closest('[data-act="start-plan"]');if(button)startWorkout(button.dataset.letter);});
+  for(const button of document.querySelectorAll('[data-plan-pick]'))button.addEventListener('click',()=>{
+    const doc=settingsDoc(),on=button.dataset.planPick==='on';if(planOn()===on)return;
+    doc.data.plan=on;markDirty(SETTINGS_DATE);renderDay();
+    toast(on?`Following ${PLAN.name}. Today's page shows what to do.`:'Plan off. Days are logged freely, as before.');
   });
   $('w-add-meal').addEventListener('click',()=>{const doc=docFor(state.viewing);doc.data.meals.push({name:'',protein:'',cal:''});markDirty(state.viewing);renderDay();$('w-meals').querySelector('.meal-row:last-of-type .meal-name')?.focus();});
   $('w-prev').addEventListener('click',()=>{state.viewing=shiftDay(state.viewing,-1);renderDay();});
