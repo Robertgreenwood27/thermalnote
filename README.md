@@ -132,6 +132,10 @@ A day is stored as one versioned document, so the whole history loads at sign-in
 - Browser draft backups protect unfinished work. A failed save is visibly marked; the app retries transient failures and offers recovery for conflicting edits from other windows. It never silently overwrites a newer version.
 - Deleted notes are soft-deleted in the database. Images remain in storage so a recovered note can still display them.
 
+## Typing speed
+
+Above **Sign out** in the sidebar, the notebook shows your typing speed live in words per minute (five characters to a word, as typing tests count it). It is orange while you type and dims when you stop. Only bursts of typing count: a pause longer than three seconds ends the burst, so thinking time never lowers the number. Pastes, drops, undo, and autocorrect swaps are not typing and are left out; swipe and predictive text count as the characters they add. Beneath the live number: the session average, the best burst of at least 20 characters, and how much of what you typed you kept rather than backspaced. It measures counts only, never what was typed, and nothing is saved; it starts fresh each time the page loads.
+
 ## Cards
 
 Writing stays writing. When a passage is something you could not repeat back, select it and press Ctrl/Cmd+M (or **Card**). It becomes a card where it sits: a block with a front and a back, and its border takes the temperature. There is no deck to file it in.

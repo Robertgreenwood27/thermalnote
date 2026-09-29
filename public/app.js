@@ -1,6 +1,7 @@
 import { HeatLayer } from './heat.js';
 import { $, api, toast, backup, escapeHTML, now, useBackupProfile } from './core.js';
 import { initWorkout, loadWorkout, flushDays, setProfile } from './workout.js';
+import { TypingMeter, MAX_STROKE } from './typing.js';
 import { MarkLayer, anchorMarks, isDue, parseMarks, retention, review } from './marks.js';
 import { CARD_ATTRS, cardText, cardsIn, heatName, makeCard, moveToOtherSide, normalizeCards, paintCards, placeCard, prepareCard, readState, serializeNote, sideOf, unwrapCard, writeState } from './cards.js';
 const title=$('note-title'), editor=$('note-body');
@@ -23,8 +24,9 @@ async function flush(){const pending=[...state.notes.keys()];await Promise.all(p
 function renderList(){const list=$('note-list');list.replaceChildren();const moment=Date.now();const notes=[...state.notes.values()].sort((a,b)=>b.updated_at.localeCompare(a.updated_at));$('note-count').textContent=notes.length;for(const note of notes){const button=document.createElement('button');button.className='note-card'+(note.id===state.active?' active':'');button.setAttribute('aria-current',note.id===state.active?'page':'false');const heading=document.createElement('strong');heading.textContent=note.title||'Untitled';const excerpt=document.createElement('p');excerpt.textContent=plain(note.content).replace(/\s+/g,' ').trim().slice(0,160)||(note.content.includes('<img')?'Image':'');excerpt.hidden=!excerpt.textContent;const time=document.createElement('small');time.textContent=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(new Date(note.updated_at));const warm=(note.marks||[]).filter(mark=>isDue(mark,moment)).length+dueCards(note,moment).length;if(warm){const badge=document.createElement('b');badge.className='warm-badge';badge.textContent=`${warm} warm`;time.append(' · ',badge);}button.append(heading,excerpt,time);button.addEventListener('click',()=>{endStudy();selectNote(note.id);});list.append(button);}if(!notes.length){list.innerHTML='<p class="list-empty">No notes</p>';}}
 function renderStatus(){const q=state.active?queue(state.active):null;const failed=[...state.queues.values()].find(item=>item.error);const pending=[...state.queues.values()].some(item=>item.saved<item.generation);const saving=[...state.queues.values()].some(item=>item.busy);const status=$('save-status');status.dataset.state=failed?'error':(pending||saving||state.uploading)?'saving':'saved';status.textContent=failed?'Save failed':state.uploading?'Adding image…':(pending||saving)?'Saving…':'Saved';const error=q?.error||failed;$('save-error').hidden=!error&&!q?.draftWarning;if(error){$('save-error').querySelector('span').textContent=error.message;$('retry-save').textContent=error.status===401?'Sign in again':'Try again';$('retry-save').hidden=error.status===409;$('copy-recovery').hidden=error.status!==409;}else if(q?.draftWarning){$('save-error').querySelector('span').textContent='Local draft backup is unavailable. Keep this tab open until changes are saved.';$('retry-save').hidden=false;$('copy-recovery').hidden=true;}}
 function updateMetadata(){const note=state.notes.get(state.active);if(!note)return;const words=(editor.innerText||'').trim().split(/\s+/).filter(Boolean).length;$('word-count').textContent=`${words.toLocaleString()} ${words===1?'word':'words'}`;$('crumb-title').textContent=note.title||'Untitled';$('note-date').textContent=new Intl.DateTimeFormat(undefined,{month:'long',day:'numeric',year:'numeric'}).format(new Date(note.created_at));document.title=`${note.title||'Untitled'} · Thermalnote`;}
+let resetLengths;
 function capture(){const note=state.notes.get(state.active);if(!note)return;note.title=title.textContent.replace(/[\r\n]+/g,' ');note.content=serializeNote(editor.innerHTML);note.marks=marks.sync();dirty(note);updateMetadata();renderStudy();}
-function selectNote(id){if(state.active&&state.active!==id)save(state.active);state.active=id;const note=state.notes.get(id);title.textContent=note.title;editor.innerHTML=sanitize(note.content);normalizeCards(editor,!state.study);paintCards(editor,Date.now(),state.direction);heat.reset();
+function selectNote(id){if(state.active&&state.active!==id)save(state.active);state.active=id;const note=state.notes.get(id);title.textContent=note.title;editor.innerHTML=sanitize(note.content);normalizeCards(editor,!state.study);resetLengths?.();paintCards(editor,Date.now(),state.direction);heat.reset();
   // Words can move or vanish between sessions. Marks that still find their text come back; the rest are let go.
   const anchored=anchorMarks(note.marks||[],editor.textContent);const lost=(note.marks||[]).length-anchored.length;note.marks=anchored;marks.load(anchored);
   if(lost)toast(`${lost} ${lost===1?'mark':'marks'} lost the words ${lost===1?'it was':'they were'} holding.`);
@@ -38,6 +40,26 @@ function showLogin(){endStudy();heat.reset();$('app-view').hidden=true;$('login-
 $('login-form').addEventListener('submit',async event=>{event.preventDefault();$('login-error').textContent='';$('login-button').disabled=true;try{const session=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});$('password').value='';await enterApp(session);}catch(error){$('login-error').textContent=error.message;}finally{$('login-button').disabled=false;}});
 $('new-note').addEventListener('click',()=>newNote());
 for(const element of [title,editor]){element.addEventListener('input',event=>{if(!event.isComposing)capture();});element.addEventListener('compositionend',capture);}
+// Typing speed. Each input is measured by how much the text grew or shrank, which also catches phone keyboards that type
+// through composition. Pastes, drops, undo, and autocorrect swaps are not typing and are left out.
+const meter=new TypingMeter(),lengths=new Map([[title,title.textContent.length],[editor,editor.textContent.length]]);
+let typingTimer=0;
+resetLengths=()=>{lengths.set(title,title.textContent.length);lengths.set(editor,editor.textContent.length);};
+const NOT_TYPING=/^(insertFromPaste|insertFromDrop|insertReplacementText|insertFromYank|historyUndo|historyRedo|deleteByCut|deleteByDrag|insertLink|format)/;
+for(const element of [title,editor])element.addEventListener('input',event=>{
+  const length=element.textContent.length,delta=length-(lengths.get(element)??length);lengths.set(element,length);
+  if(state.study||!delta||NOT_TYPING.test(event.inputType||''))return;
+  if(delta>0&&delta<=MAX_STROKE)meter.record('type',delta);else if(delta<0&&delta>=-MAX_STROKE)meter.record('delete',-delta);else return;
+  renderTyping();if(!typingTimer)typingTimer=setInterval(renderTyping,500);
+});
+function renderTyping(){
+  const live=meter.live(),session=meter.session(),box=$('typing');
+  box.dataset.state=live===null?'idle':'live';
+  $('typing-wpm').textContent=live!==null?Math.round(live):session.last?Math.round(session.last):'—';
+  $('typing-session').textContent=session.typed?[`avg ${Math.round(session.avg)}`,session.best?`best ${Math.round(session.best)}`:'',`${Math.round(session.kept*100)}% kept`].filter(Boolean).join(' · '):'Start typing to see your speed';
+  box.title=session.typed?`This session: ${session.minutes<1?'under a minute':`${Math.round(session.minutes)} min`} of typing. Pauses over 3 seconds are not counted.`:'Words per minute while you type. Pauses over 3 seconds are not counted.';
+  if(live===null){clearInterval(typingTimer);typingTimer=0;}
+}
 title.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();editor.focus();}});
 title.addEventListener('paste',event=>{event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain').replace(/[\r\n]+/g,' '));});
 $('save-status').addEventListener('click',()=>flush());
@@ -46,7 +68,7 @@ $('copy-recovery').addEventListener('click',async()=>{let id=state.active;if(que
 $('logout').addEventListener('click',async()=>{if(state.uploading){toast('Let the image finish uploading before signing out.');return;}if(!await flush()||!await flushDays()){toast('Finish saving your changes before signing out.');return;}try{await api('/api/logout',{method:'POST',body:'{}'});location.reload();}catch(error){toast(error.message);}});
 $('heat-toggle').setAttribute('aria-pressed',String(heat.enabled));$('heat-toggle').lastChild.textContent=heat.enabled?'Heat on':'Heat off';$('heat-toggle').addEventListener('click',()=>{const enabled=heat.toggle();$('heat-toggle').setAttribute('aria-pressed',String(enabled));$('heat-toggle').lastChild.textContent=enabled?'Heat on':'Heat off';});
 // One gesture while writing: select what you could not repeat back and it becomes a card. Its border carries the temperature.
-function afterCardEdit(){paintCards(editor,Date.now(),state.direction);heat.update(editor);capture();}
+function afterCardEdit(){paintCards(editor,Date.now(),state.direction);heat.update(editor);capture();resetLengths?.();}
 function caretAfter(card){let line=card.nextSibling;if(!line||line.nodeType!==Node.ELEMENT_NODE||line.classList.contains('card')){line=document.createElement('div');line.append(document.createElement('br'));card.after(line);}const range=document.createRange();range.setStart(line,0);range.collapse(true);restoreRange(range);}
 function caretIn(side){side.focus();const range=document.createRange();range.selectNodeContents(side);range.collapse(false);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);}
 function cardSelection(){
