@@ -114,7 +114,10 @@ function plannedEntry(letter,index,name,date){
   return{id:crypto.randomUUID(),mid:movement.id,name:movement.name,group:movement.group,kind:movement.kind,plan:{w:letter,i:index},sets:progress(slotOf(letter,index),movement.name,history&&{sets:logged(history.entry)}).sets};
 }
 function startWorkout(letter){
-  const doc=docFor(state.viewing);doc.data.plan=letter;
+  const doc=docFor(state.viewing);
+  // Switching workouts clears the other one's untouched movements; anything already logged stays.
+  if(doc.data.plan&&doc.data.plan!==letter)doc.data.movements=doc.data.movements.filter(entry=>!(entry.plan&&entry.plan.w!==letter&&!logged(entry).length));
+  doc.data.plan=letter;
   for(const[index,slot]of PLAN.workouts[letter].entries()){
     const existing=doc.data.movements.find(entry=>slot.options.some(name=>slug(name)===entry.mid));
     if(existing){existing.plan={w:letter,i:index};continue;}
@@ -139,7 +142,12 @@ function renderPlan(doc){
   if(doc.data.plan){
     const slots=PLAN.workouts[doc.data.plan]||[],entries=doc.data.movements.filter(entry=>entry.plan?.w===doc.data.plan);
     const done=entries.filter(entry=>logged(entry).length>=(slotOf(entry.plan.w,entry.plan.i)?.sets||1)).length;
-    box.append(el('p','plan-kicker',PLAN.name),el('h2','plan-title',`Workout ${doc.data.plan}`),el('p','plan-sub',`${done} of ${slots.length} movements done`),rules);
+    box.append(el('p','plan-kicker',PLAN.name),el('h2','plan-title',`Workout ${doc.data.plan}`),el('p','plan-sub',`${done} of ${slots.length} movements done`));
+    // Removed a movement, or closed them all? The workout can always be loaded back in.
+    const missing=slots.filter((slot,index)=>!entries.some(entry=>entry.plan.i===index)).length;
+    if(missing){const load=el('button','plan-start',entries.length?`Add the ${missing} missing ${missing===1?'movement':'movements'}`:`Load workout ${doc.data.plan}`);load.type='button';load.dataset.act='start-plan';load.dataset.letter=doc.data.plan;box.append(load);}
+    const switchTo=nextWorkout(doc.data.plan),swap=el('button','plan-alt',`or switch to workout ${switchTo}`);swap.type='button';swap.dataset.act='start-plan';swap.dataset.letter=switchTo;
+    box.append(swap,rules);
     return;
   }
   const last=lastWorkout(doc.date),letter=nextWorkout(last?.letter),other=nextWorkout(letter);
@@ -151,7 +159,7 @@ function renderPlan(doc){
   }else{
     const next=nextTrainingDay(doc.date);
     box.append(el('p','plan-kicker',PLAN.name),el('h2','plan-title','Rest day'),el('p','plan-sub',`Next: workout ${letter} on ${new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(asDate(next))}. ${names}.`));
-    start.textContent=`Do workout ${letter} today instead`;start.classList.add('quiet');box.append(start);
+    start.textContent=`Do workout ${letter} today instead`;start.classList.add('quiet');box.append(start,alt);
   }
 }
 
