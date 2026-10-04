@@ -2,8 +2,9 @@
 // so changing the plan is editing the table below and reloading.
 import { kindOf } from './movements.js';
 
-// Each slot lists the movements that can fill it, gym choice first. A swap (home, or a busy machine) is remembered:
-// the slot opens on whichever option was done most recently.
+// Each slot lists the movements that can fill it, gym choice first. A lift that needs a matched pair of dumbbells
+// also lists its closest barbell version, for training at home with one bar and odd single dumbbells. A swap (home,
+// a busy machine, no pair) is remembered: the slot opens on whichever option was done most recently.
 export const PLAN={
   name:'Full-body hypertrophy, beginner',
   days:[2,4,6], // Tue, Thu, Sat, as Date.getDay() numbers them
@@ -14,18 +15,18 @@ export const PLAN={
   rest:{big:[2,3],small:[1,2]},
   workouts:{
     A:[
-      {options:['Dumbbell Bench Press'],sets:3,reps:[8,12],big:true},
+      {options:['Dumbbell Bench Press','Barbell Bench Press'],sets:3,reps:[8,12],big:true},
       {options:['Dumbbell Row'],sets:3,reps:[8,12],big:true,perSide:true},
       {options:['Leg Press','Goblet Squat'],sets:3,reps:[10,15],big:true},
-      {options:['Seated Leg Curl','Dumbbell Romanian Deadlift'],sets:2,reps:[10,15],big:true,failLast:true},
-      {options:['Seated Dumbbell Press'],sets:2,reps:[8,12]},
-      {options:['Incline Dumbbell Curl'],sets:2,reps:[10,15],failLast:true}
+      {options:['Seated Leg Curl','Dumbbell Romanian Deadlift','Romanian Deadlift'],sets:2,reps:[10,15],big:true,failLast:true},
+      {options:['Seated Dumbbell Press','Seated Barbell Press'],sets:2,reps:[8,12]},
+      {options:['Incline Dumbbell Curl','Barbell Curl'],sets:2,reps:[10,15],failLast:true}
     ],
     B:[
       {options:['Pull-Up','Lat Pulldown'],sets:3,reps:[6,12],big:true},
-      {options:['Incline Dumbbell Press'],sets:3,reps:[8,12],big:true},
+      {options:['Incline Dumbbell Press','Incline Barbell Bench Press'],sets:3,reps:[8,12],big:true},
       {options:['Goblet Squat'],sets:3,reps:[10,15],big:true},
-      {options:['Dumbbell Romanian Deadlift'],sets:3,reps:[8,12],big:true},
+      {options:['Dumbbell Romanian Deadlift','Romanian Deadlift'],sets:3,reps:[8,12],big:true},
       {options:['Cable Lateral Raise','Lateral Raise'],sets:3,reps:[12,20],failLast:true},
       {options:['Overhead Triceps Extension'],sets:2,reps:[10,15]}
     ]
