@@ -276,3 +276,9 @@
 .typing-now span{font-size:.75rem;color:var(--muted);letter-spacing:.06em}
 .typing[data-state=live] .typing-now strong{color:var(--accent)}
 .typing small{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.mv-note-btn{font-size:.8125rem;color:var(--muted);padding:7px 9px;border-radius:7px}
+.mv-note-btn:hover{color:var(--text);background:#1c1c1f}
+.mv-comment{display:block;width:100%;margin-top:9px;background:#131315;border:1px solid #303035;border-radius:8px;padding:9px 11px;color:var(--text);font:inherit;font-size:.875rem;line-height:1.45;resize:vertical;outline:none;field-sizing:content;min-height:2.6em}
+.mv-comment:focus{border-color:var(--accent)}
+.mv-last-note{flex-basis:100%;color:#c9c6cc;font-style:italic}
+.mv-foot .mv-total{margin-left:auto}

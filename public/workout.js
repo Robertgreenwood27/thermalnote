@@ -130,7 +130,7 @@ function swapOption(entry){
   const typed=entry.sets.some(set=>!set.g&&(num(set.w)>0||num(set.r)>0||num(set.sec)>0));
   const name=slot.options[(slot.options.findIndex(option=>slug(option)===entry.mid)+1)%slot.options.length];
   if(typed&&!confirm(`Swap to ${name}? The sets typed for ${entry.name} will be cleared.`))return false;
-  const doc=docFor(state.viewing);doc.data.movements[doc.data.movements.indexOf(entry)]={...plannedEntry(entry.plan.w,entry.plan.i,name,state.viewing),id:entry.id};
+  const doc=docFor(state.viewing);doc.data.movements[doc.data.movements.indexOf(entry)]={...plannedEntry(entry.plan.w,entry.plan.i,name,state.viewing),id:entry.id,...(entry.note?{note:entry.note}:{})};
   return true;
 }
 function renderPlan(doc){
@@ -186,6 +186,8 @@ function movementCard(entry,date){
   const history=previous(entry.mid,date),record=best(entry.mid,date);
   const past=el('p','mv-prev');
   past.append(el('span','mv-prev-main',history?`Last ${shortDate(history.date)}: ${setsText(history.entry)} · ${volumeText(history.entry)}`:'First time logging this'));
+  // Whatever you wrote about it last time comes back with it: "left shoulder twinged", "use the red band".
+  if(text(history?.entry.note))past.append(el('span','mv-last-note',`Last note: ${text(history.entry.note)}`));
   if(record.volume>0)past.append(el('span','mv-pb',entry.kind==='weight'?`PB ${group(record.volume)} lb${record.top?` · ${fmt(record.top)} e1RM`:''}`:`PB ${group(record.volume)}${entry.kind==='body'?' reps':'s'}`));
   const slot=entry.plan&&slotOf(entry.plan.w,entry.plan.i);
   if(slot){
@@ -213,9 +215,11 @@ function movementCard(entry,date){
   }
   const foot=el('div','mv-foot');
   const add=el('button','add-set','+ Set');add.type='button';add.dataset.act='add-set';
-  foot.append(add,el('span','mv-total'));
+  const comment=el('textarea','mv-comment');comment.rows=2;comment.value=entry.note??'';comment.placeholder='How it felt, form cues, what to change next time';comment.setAttribute('aria-label',`Note on ${entry.name}`);comment.hidden=!text(entry.note);
+  const noteButton=el('button','mv-note-btn','+ Note');noteButton.type='button';noteButton.dataset.act='open-note';noteButton.hidden=!comment.hidden;
+  foot.append(add,noteButton,el('span','mv-total'));
   if(!slot)section.append(head,past);
-  section.append(grid,foot);
+  section.append(grid,foot,comment);
   refresh(section,entry,date);
   return section;
 }
@@ -389,6 +393,7 @@ export function dayText(doc,{previous:withPrevious=true}={}){
     lines.push('','WORKOUT');
     for(const entry of done){
       lines.push(`${entry.name} — ${setsText(entry,true)} · ${volumeText(entry)}`);
+      if(text(entry.note))lines.push(`  note: ${text(entry.note).replace(/\s*\n\s*/g,' / ')}`);
       const history=withPrevious&&previous(entry.mid,doc.date);
       if(history){const delta=entryVolume(entry)-entryVolume(history.entry);lines.push(`  prev ${shortDate(history.date)} — ${setsText(history.entry)} · ${volumeText(history.entry)}${delta?` (${delta>0?'+':''}${group(delta)})`:''}`);}
     }
@@ -438,9 +443,13 @@ export function initWorkout({onUnauthorized}={}){
     if(state.viewing!==dayKey())state.viewing=dayKey();
     showPane('day');renderDay();addMovement(movement);
   }});
-  $('w-movements').addEventListener('input',event=>{if(event.target.classList.contains('set-in'))editSet(event.target);});
+  $('w-movements').addEventListener('input',event=>{
+    if(event.target.classList.contains('set-in'))editSet(event.target);
+    if(event.target.classList.contains('mv-comment')){const entry=docFor(state.viewing).data.movements.find(item=>item.id===event.target.closest('.mv').dataset.id);if(!entry)return;entry.note=event.target.value;markDirty(state.viewing);}
+  });
   $('w-movements').addEventListener('click',event=>{
     const action=event.target.dataset.act;if(!action)return;
+    if(action==='open-note'){const section=event.target.closest('.mv'),box=section.querySelector('.mv-comment');event.target.hidden=true;box.hidden=false;box.focus();return;}
     const doc=docFor(state.viewing),section=event.target.closest('.mv');
     const entry=doc.data.movements.find(item=>item.id===section.dataset.id);if(!entry)return;
     if(action==='add-set'){const last=entry.sets[entry.sets.length-1];entry.sets.push(last?{...last,rir:''}:blank(entry.kind));for(const set of entry.sets)delete set.g;}

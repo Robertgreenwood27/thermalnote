@@ -52,6 +52,8 @@ Sets are a plain list, which is what makes uneven sets a non-event. **+ Set** co
 
 Each movement carries three columns depending on what it is: weight/reps/RIR for loaded lifts, reps/added weight/RIR for bodyweight movements, and seconds for held positions like planks. **RIR** is reps in reserve — how many more were left in the tank. It is always optional, and it is the thing that separates a hard set from an easy one at the same weight.
 
+**+ Note** beside **+ Set** opens a comment box on any movement: how it felt, a form cue, a tweak for next time. The next time that movement is added, its last note shows under last session's numbers, and Copy day includes it.
+
 ### Knowing whether it is working
 
 Under every movement: what was done last time and its total volume, then the personal best (best session volume, and best estimated one-rep max by the Epley formula). Beating the previous session shows a green gain beside the day's total for that movement.
