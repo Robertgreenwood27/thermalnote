@@ -38,3 +38,15 @@ test('yoga poses are held on the clock and look up as poses',()=>{
  assert.match(imageSearch('Kettlebell Swing'),/exercise%20form/);
  assert.equal(new Set(CATALOGUE.map(movement=>movement.id)).size,CATALOGUE.length,'every movement id is unique');
 });
+
+test('every barbell lift is in the catalogue and found by the word barbell',async()=>{
+ const {BARBELL,searchText}=await import('../public/movements.js');
+ const names=new Set(CATALOGUE.map(movement=>movement.name));
+ for(const name of BARBELL)assert.ok(names.has(name),`${name} is tagged barbell but is not in the catalogue`);
+ assert.ok(BARBELL.size>=60,`${BARBELL.size} barbell lifts`);
+ const find=query=>CATALOGUE.filter(movement=>query.split(' ').every(word=>searchText(movement.name).includes(word))).map(movement=>movement.name);
+ assert.ok(find('barbell overhead press').includes('Overhead Press'));
+ assert.ok(find('military press').includes('Overhead Press'));
+ assert.ok(find('barbell squat').includes('Back Squat'));
+ assert.ok(find('rdl').includes('Romanian Deadlift'));
+});

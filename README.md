@@ -44,6 +44,8 @@ The day is chosen automatically and rolls over at **4am**, so a session finished
 
 **+ Add movement** opens the catalogue: most-used first, then 99 movements across eleven muscle groups, plus search. The magnifier beside any movement opens a Google image search for it — the fastest way to learn a lift that is only a name so far. Searching something not in the list offers to add it as a new movement, and it joins the catalogue from then on.
 
+**Barbell** sits at the top of the catalogue: every lift that loads a barbell or landmine, about 70 of them, for training at home with one bar. Search matches every word in any order and knows the other names lifts go by, so "barbell overhead press" and "military press" both find Overhead Press, and "rdl" finds Romanian Deadlift.
+
 Adding a movement **fills in what was done last time**, so the starting question is "can this be beaten" rather than "what was it again". Untouched numbers are dimmed until edited, to show at a glance what has not been confirmed yet.
 
 Sets are a plain list, which is what makes uneven sets a non-event. **+ Set** copies the row above it, so three identical sets are one entry and two taps, and 30×10, 30×5, 20×8 is the same action with two numbers changed. There is no separate mode to switch into.

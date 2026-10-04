@@ -1,5 +1,5 @@
 import { $, api, toast, backup, now } from './core.js';
-import { GROUPS, CATALOGUE, byId, slug, imageSearch } from './movements.js';
+import { GROUPS, CATALOGUE, BARBELL, byId, slug, imageSearch, searchText } from './movements.js';
 import { initBody, openBody, closeBody } from './body.js';
 import { PLAN, slotOf, isTrainingDay, nextTrainingDay, nextWorkout, targetText, progress, noteFor } from './plan.js';
 // A training day runs 4am to 4am, so a late-night session lands on the day it belonged to.
@@ -351,7 +351,9 @@ function renderPicker(term='',only=null){
   const list=$('w-picker-list');list.replaceChildren();
   const all=knownMovements(),query=term.trim().toLowerCase();
   if(query){
-    const matches=[...all.values()].filter(movement=>movement.name.toLowerCase().includes(query)).sort((a,b)=>a.name.localeCompare(b.name));
+    // Every word has to appear somewhere, in any order, so "barbell overhead press" finds Overhead Press.
+    const words=query.split(/\s+/).filter(Boolean);
+    const matches=[...all.values()].filter(movement=>{const hay=searchText(movement.name);return words.every(word=>hay.includes(word));}).sort((a,b)=>a.name.localeCompare(b.name));
     if(matches.length)list.append(section(`${matches.length} match${matches.length===1?'':'es'}`,matches,true));
     if(!matches.some(movement=>movement.name.toLowerCase()===query)){
       const custom=el('button','pick-custom',`Add “${term.trim()}” as a new movement`);custom.type='button';custom.dataset.act='pick-custom';list.append(custom);
@@ -361,6 +363,8 @@ function renderPicker(term='',only=null){
   const counts=usage();
   const recent=[...counts.entries()].sort((a,b)=>b[1]-a[1]).map(([mid])=>all.get(mid)).filter(movement=>movement&&(!only||movement.group===only)).slice(0,8);
   if(recent.length)list.append(section('Most used',recent,true));
+  // Everything that goes on a barbell, together: the whole home gym in one place.
+  if(!only)list.append(section('Barbell',CATALOGUE.filter(movement=>BARBELL.has(movement.name)).sort((a,b)=>a.name.localeCompare(b.name)),true));
   const groups=only?GROUPS.filter(item=>item.id===only):focus()==='functional'?[...GROUPS].sort((a,b)=>FUNCTIONAL_ORDER.indexOf(a.id)-FUNCTIONAL_ORDER.indexOf(b.id)):GROUPS;
   for(const item of groups)list.append(section(item.name,item.movements.map(name=>all.get(slug(name))).filter(Boolean)));
 }
