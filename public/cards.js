@@ -62,6 +62,10 @@ export function normalizeCards(root,editable=true){
     const state=readState(card);if(!state.id||seen.has(state.id))state.id=freshId();seen.add(state.id);writeState(card,state);
     prepareCard(card,editable);
   }
+  // Old saves can end with an atomic card and leave the browser nowhere to put a caret.
+  let tail=root.lastChild;
+  while(tail?.nodeType===Node.TEXT_NODE&&!tail.textContent.trim())tail=tail.previousSibling;
+  if(tail?.classList?.contains('card')){const line=document.createElement('div');line.append(document.createElement('br'));root.append(line);}
 }
 export function paintCards(root,now=Date.now(),direction='forward'){for(const card of root.querySelectorAll('.card'))card.dataset.heat=direction==='backward'&&!hasBack(card)?'cool':heatName(readState(card,direction),now);}
 const hasContent=node=>node.nodeType===Node.TEXT_NODE?/\S/.test(node.data):node.nodeName==='IMG'||/\S/.test(node.textContent)||!!node.querySelector?.('img,.card');

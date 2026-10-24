@@ -144,7 +144,12 @@ function guardCards(event){
     if(!card)return;
     // Blank space beside a card is lines, not the card: a newline, a <br>, or an empty line goes first, one per press.
     const gap=backward?card.nextSibling:card.previousSibling;
-    if(gap&&!isCard(gap)&&(gap.nodeType===Node.TEXT_NODE?/^\s/.test(backward?gap.data:gap.data.slice(-1)):gap.nodeName==='BR'||blank(gap))){
+    // Keep the final editable line: without it Chromium drops the caret after an atomic card.
+    // At that boundary Backspace arms the card instead, keeping the two-press deletion gesture.
+    let tail=gap?.nextSibling;
+    while(tail?.nodeType===Node.TEXT_NODE&&!tail.textContent.trim())tail=tail.nextSibling;
+    const trailingLine=backward&&gap?.nodeType===Node.ELEMENT_NODE&&!tail&&blank(gap);
+    if(gap&&!trailingLine&&!isCard(gap)&&(gap.nodeType===Node.TEXT_NODE?/^\s/.test(backward?gap.data:gap.data.slice(-1)):gap.nodeName==='BR'||blank(gap))){
       event.preventDefault();
       if(gap.nodeType===Node.TEXT_NODE){const at=backward?0:gap.data.length-1;gap.deleteData(at,1);if(!gap.data.length)gap.remove();}else gap.remove();
       const caret=document.createRange(),next=backward?card.nextSibling:card.previousSibling;
@@ -173,7 +178,12 @@ function guardCards(event){
   if(range.collapsed){const hold=document.createRange();hold.selectNode(touched[0]);restoreRange(hold);}
 }
 editor.addEventListener('beforeinput',guardCards);
-editor.addEventListener('keydown',event=>{if(!['Backspace','Delete'].includes(event.key)&&!['Control','Meta','Shift','Alt'].includes(event.key))disarm();});
+editor.addEventListener('keydown',event=>{
+  if(event.isComposing)return;
+  // Chromium can skip beforeinput when the selection is an atomic, noneditable card.
+  if(['Backspace','Delete'].includes(event.key))guardCards({inputType:event.key==='Backspace'?'deleteContentBackward':'deleteContentForward',preventDefault:()=>event.preventDefault()});
+  else if(!['Control','Meta','Shift','Alt'].includes(event.key))disarm();
+});
 document.addEventListener('selectionchange',()=>{const armed=editor.querySelectorAll('.card[data-armed]');if(!armed.length)return;const selection=getSelection();const range=selection.rangeCount?selection.getRangeAt(0):null;if(!range||![...armed].every(card=>range.intersectsNode(card)))disarm();});
 editor.addEventListener('keydown',event=>{
   if(state.study)return;
